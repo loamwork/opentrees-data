@@ -58,6 +58,94 @@ function paloAltoCommon(code) {
 }
 
 /**
+ * Clean up an ALL-CAPS underscore-separated common name like
+ * "HONEY_LOCUST" / "GLENLEVEN_LITTLELEAF_LINDEN" into title case.
+ * Returns null for blank/empty input.
+ */
+function cleanCommon(v) {
+    if (!v) return null;
+    const s = String(v).replace(/_/g, ' ').trim();
+    if (!s) return null;
+    return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/**
+ * Factory for Chicago-area GIS Consortium tree sources. The consortium runs
+ * a single shared FeatureServer at ags.gisconsortium.org/arcgis/rest/services
+ * /GISC/AGOL_AssetManagement_Viewing_Public/MapServer/6 that holds ~577K
+ * trees across ~30 member municipalities, partitioned by a `REPLICAFILTER`
+ * field (e.g. VAH = Arlington Heights, VGV = Glenview). We filter to
+ * REPLICAFILTER='X' AND STATUS='Tree' so each source gets only its own
+ * living trees. Schema is identical across all members, so this factory
+ * keeps the crosswalk definition DRY.
+ *
+ * Usage:
+ *   giscSource({ id: 'arlington_heights', replicaFilter: 'VAH',
+ *                short: 'Arlington Heights',
+ *                long: 'Village of Arlington Heights, Illinois' })
+ */
+function giscSource({ id, replicaFilter, short, long, dbhFromDescription = false, extraCrosswalk = {} }) {
+    const baseUrl = `https://ags.gisconsortium.org/arcgis/rest/services/GISC/AGOL_AssetManagement_Viewing_Public/MapServer/6`;
+    // Raw STATUS values in the data are uppercase ("TREE", "STUMP",
+    // "PLANTINGSPACE", "REMOVED"); the codedValueDomain only pretties them up
+    // for display. Filter server-side to living trees.
+    const where = `REPLICAFILTER%3D%27${replicaFilter}%27+AND+STATUS%3D%27TREE%27`;
+    return {
+        id,
+        download: `${baseUrl}/query?where=${where}&outFields=*&outSR=4326&f=geojson`,
+        info: 'https://www.gisconsortium.org/',
+        sourceMetadataUrl: `${baseUrl}?f=json`,
+        format: 'arcgis-rest',
+        short,
+        long,
+        country: 'USA',
+        crosswalk: {
+            ref: 'OBJECTID',
+            scientific: 'SPECIESSCIENTIFICNAME',
+            common: x => cleanCommon(x.SPECIESCOMMONNAME),
+            genus: 'GENUS',
+            genusCommon: x => cleanCommon(x.GENUSCOMMONNAME),
+            family: 'FAMILYSCIENTIFICNAME',
+            cultivar: 'CULTIVAR',
+            variety: 'VARIETY',
+            // Some GISC members (notably Park Ridge) stash DBH as text in the
+            // DESCRIPTION field ("18 DBH", "1 DBH", "28 DBH") instead of
+            // populating DIAMETER. Honor either source when asked.
+            dbh: dbhFromDescription
+                ? (x => {
+                    const num = Number(x.DIAMETER);
+                    if (Number.isFinite(num) && num > 0) return num * INCHES;
+                    const m = (x.DESCRIPTION || '').match(/(\d+(?:\.\d+)?)\s*DBH/i);
+                    return m ? Number(m[1]) * INCHES : null;
+                })
+                : (x => x.DIAMETER ? Number(x.DIAMETER) * INCHES : null),
+            isParkwayTree: 'ISPARKWAYTREE',
+            parkName: 'PARKNAME',
+            ownership: 'OWNERSHIP',
+            maintained: 'MAINTAINED',
+            status: 'STATUS',
+            treeId: 'TREEID',
+            address: 'NEARESTADDRESS',
+            location: 'LOCATIONDESCRIPTION',
+            quad: 'QUAD',
+            zone: 'ZONE',
+            hasWaterDevice: 'HASWATERDEVICE',
+            hasOverheadWire: 'HASOVERHEADWIRE',
+            nursery: 'NURSERY',
+            source: 'SOURCE',
+            sourceType: 'SOURCETYPE',
+            planted: x => x.PLANTINGDATE ? new Date(x.PLANTINGDATE).toISOString() : null,
+            plantingDescription: 'PLANTINGDESCRIPTION',
+            tagged: x => x.TAGDATE ? new Date(x.TAGDATE).toISOString() : null,
+            created: x => x.DATECREATED ? new Date(x.DATECREATED).toISOString() : null,
+            updated: x => x.DATEMODIFIED ? new Date(x.DATEMODIFIED).toISOString() : null,
+            webLink: 'WEBLINK',
+            ...extraCrosswalk,
+        },
+    };
+}
+
+/**
  * Santa Barbara's DBH and HEIGHT fields are string bins like "0-6", "7-12",
  * "13-18", "19-24", "25-30", "31-36", "37+" for DBH (inches) and
  * "01-15", "15-30", "30-45", "45-60", "60+" for height (feet). Return the
@@ -1950,6 +2038,154 @@ module.exports = [
         treeNumber: 'tree',
         isValid: 'isvalid',
         recommended: 'recommended',
+    },
+},
+// ----- Chicago area (11 sources, ~236K trees) -----
+// The elephant in the room: the City of Chicago proper (~500K street trees
+// managed by the Chicago Bureau of Forestry under Streets & Sanitation)
+// publishes NOTHING on data.cityofchicago.org — only 311 tree-trim service
+// request tickets. CBOF is post-v1 council email target #12. Highland Park,
+// Skokie, Lake Forest, Lake Bluff, Niles, and Wilmette are also private-
+// data or Davey-locked — see post_v1_council_emails.md #13.
+//
+// What we do ship: 11 suburban and satellite-city sources, totaling
+// ~236K trees. 8 of them share the GIS Consortium's `AGOL_AssetManagement`
+// FeatureServer and are declared via the giscSource() factory above.
+// Morton Grove, Oak Park, and Evanston have their own dedicated endpoints.
+giscSource({
+    id: 'arlington_heights',
+    replicaFilter: 'VAH',
+    short: 'Arlington Heights',
+    long: 'Village of Arlington Heights, Illinois',
+}),
+giscSource({
+    id: 'glenview',
+    replicaFilter: 'VGV',
+    short: 'Glenview',
+    long: 'Village of Glenview, Illinois',
+}),
+giscSource({
+    id: 'northbrook',
+    replicaFilter: 'VNB',
+    short: 'Northbrook',
+    long: 'Village of Northbrook, Illinois',
+}),
+giscSource({
+    // Park Ridge stores DBH as text in the DESCRIPTION field ("18 DBH")
+    // instead of populating DIAMETER, so we parse it out with a regex.
+    id: 'park_ridge',
+    replicaFilter: 'CPR',
+    short: 'Park Ridge',
+    long: 'City of Park Ridge, Illinois',
+    dbhFromDescription: true,
+}),
+giscSource({
+    id: 'winnetka',
+    replicaFilter: 'VWN',
+    short: 'Winnetka',
+    long: 'Village of Winnetka, Illinois',
+}),
+giscSource({
+    id: 'deerfield',
+    replicaFilter: 'VDF',
+    short: 'Deerfield',
+    long: 'Village of Deerfield, Illinois',
+}),
+giscSource({
+    id: 'glencoe',
+    replicaFilter: 'VGC',
+    short: 'Glencoe',
+    long: 'Village of Glencoe, Illinois',
+}),
+giscSource({
+    id: 'kenilworth',
+    replicaFilter: 'VKW',
+    short: 'Kenilworth',
+    long: 'Village of Kenilworth, Illinois',
+}),
+{
+    // Village of Morton Grove, Illinois — Morton Grove has its own dedicated
+    // GIS Consortium FeatureServer that exposes 12,293 trees (vs only 988 via
+    // the shared VMG partition, possibly a replication-lag artifact). We use
+    // the dedicated endpoint since it has much richer coverage. Same schema
+    // as the shared GISC endpoint so the crosswalk is identical.
+    id: 'morton_grove',
+    download: 'https://ags.gisconsortium.org/arcgis/rest/services/VMG/AGOL_VMG_Project/MapServer/257/query?where=STATUS%3D%27Tree%27&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.gisconsortium.org/',
+    sourceMetadataUrl: 'https://ags.gisconsortium.org/arcgis/rest/services/VMG/AGOL_VMG_Project/MapServer/257?f=json',
+    format: 'arcgis-rest',
+    short: 'Morton Grove',
+    long: 'Village of Morton Grove, Illinois',
+    country: 'USA',
+    crosswalk: {
+        ref: 'OBJECTID',
+        scientific: 'SPECIESSCIENTIFICNAME',
+        common: x => cleanCommon(x.SPECIESCOMMONNAME),
+        genus: 'GENUS',
+        genusCommon: x => cleanCommon(x.GENUSCOMMONNAME),
+        family: 'FAMILYSCIENTIFICNAME',
+        cultivar: 'CULTIVAR',
+        dbh: x => x.DIAMETER ? Number(x.DIAMETER) * INCHES : null,
+        isParkwayTree: 'ISPARKWAYTREE',
+        address: 'NEARESTADDRESS',
+        status: 'STATUS',
+        planted: x => x.PLANTINGDATE ? new Date(x.PLANTINGDATE).toISOString() : null,
+        removed: x => x.REMOVALDATE ? new Date(x.REMOVALDATE).toISOString() : null,
+    },
+},
+{
+    // Village of Oak Park, Illinois — west of Chicago, famous for its dense
+    // urban forest and Frank Lloyd Wright homes. Village of Oak Park's own
+    // ArcGIS Online org, 18,549 trees in the VOP_TreeInventory_PUBLICVIEW
+    // layer. Clean schema with SPP_LATIN / SPP_COMMON / DBH (inches) / HEIGHT
+    // (feet) / SPREAD (feet).
+    id: 'oak_park',
+    download: 'https://services5.arcgis.com/aymthbPDQOcCnuwg/arcgis/rest/services/VOP_TreeInventory_PUBLICVIEW/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.oak-park.us/village-services/forestry',
+    sourceMetadataUrl: 'https://services5.arcgis.com/aymthbPDQOcCnuwg/arcgis/rest/services/VOP_TreeInventory_PUBLICVIEW/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Oak Park',
+    long: 'Village of Oak Park, Illinois',
+    country: 'USA',
+    crosswalk: {
+        ref: 'OBJECTID',
+        scientific: 'SPP_LATIN',
+        common: x => cleanCommon(x.SPP_COMMON),
+        dbh: x => x.DBH ? Number(x.DBH) * INCHES : null,
+        height: x => x.HEIGHT ? Number(x.HEIGHT) / FEET : null,
+        crownSpread: x => x.SPREAD ? Number(x.SPREAD) / FEET : null,
+    },
+},
+{
+    // City of Evanston, Illinois — north of Chicago, Northwestern University
+    // town. 35,526 trees in the city's own MapServer at
+    // maps.cityofevanston.org. Schema has separate Genus / SPP (scientific
+    // binomial) / Cultivar / Common / DBH (inches). Updated 2024-05-30.
+    id: 'evanston',
+    download: 'https://maps.cityofevanston.org/arcgis/rest/services/OpenData/ArcGISOpenData/MapServer/8/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.cityofevanston.org/',
+    sourceMetadataUrl: 'https://maps.cityofevanston.org/arcgis/rest/services/OpenData/ArcGISOpenData/MapServer/8?f=json',
+    format: 'arcgis-rest',
+    short: 'Evanston',
+    long: 'City of Evanston, Illinois',
+    country: 'USA',
+    crosswalk: {
+        ref: 'OBJECTID',
+        scientific: 'SPP',
+        common: x => cleanCommon(x.Common),
+        genus: 'Genus',
+        cultivar: 'CULTIVAR',
+        dbh: x => x.DBH ? Number(x.DBH) * INCHES : null,
+        lifeCycle: 'LifeCycle',
+        address: x => {
+            const num = x.Address != null ? Math.trunc(Number(x.Address)).toString() : '';
+            const street = (x.Street || '').trim();
+            const combined = [num, street].filter(Boolean).join(' ').trim();
+            return combined || null;
+        },
+        side: 'Side',
+        created: x => x.created_date ? new Date(x.created_date).toISOString() : null,
+        updated: x => x.last_edited_date ? new Date(x.last_edited_date).toISOString() : null,
     },
 },
 {
