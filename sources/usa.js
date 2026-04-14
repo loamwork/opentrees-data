@@ -1448,6 +1448,94 @@ module.exports = [
     primary: 'atlanta',
 },
 {
+    // Added 2026-04-14: University of Georgia campus trees > 5" DBH. There is
+    // no public tree inventory for the City of Athens-Clarke County proper —
+    // the only candidate, ACC_Street_Trees_2, is a 46,897-record LiDAR-derived
+    // point cloud with synthesized species guesses (every first 100 rows is
+    // "Northern Red Oak", clearly implausible) and was rejected. ACC city
+    // trees are documented as a post-v1 council email target.
+    //
+    // What we do get: UGA's Office of University Architects / Grounds
+    // published a professional one-time inventory in 2017 covering 3,745
+    // trees on the main UGA campus with DBH > 5 inches. Despite the 2017
+    // vintage this is real field-collected data — DBH per stem (DBH1-6 for
+    // multi-stem trees, DBHS is stem count 1-6, DBH_LARGES is unused), live
+    // height, crown measurements, and a full set of health/structure/decay
+    // ratings on a 0-4 integer scale (no codedValueDomain is published, so
+    // we store raw integers and document them as "0=worst, 4=best").
+    //
+    // UGA's campus is a meaningful chunk of Athens's tree canopy (~600 acres)
+    // and is famously tree-rich, so this is worth shipping on its own. The
+    // CHAMPION field exists but is only set on 1 of 3,745 records, so we
+    // keep it but don't treat it as authoritative heritage data.
+    //
+    // License: no `licenseInfo` on the item; treat as public-attribution to
+    // UGA Office of University Architects / Grounds.
+    id: 'athens_uga',
+    download: 'https://services2.arcgis.com/PYn6bWCjT6bhw1z3/arcgis/rest/services/UGACampusTrees_GT5DBH/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://architects.uga.edu/',
+    sourceMetadataUrl: 'https://services2.arcgis.com/PYn6bWCjT6bhw1z3/arcgis/rest/services/UGACampusTrees_GT5DBH/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Athens (UGA)',
+    long: 'University of Georgia campus, Athens, Georgia',
+    country: 'USA',
+    crosswalk: {
+        ref: 'OBJECTID',
+        scientific: 'BOT_NAME',
+        common: 'COMMONNAME', // COM_NAME is blank in every row; COMMONNAME is the real one
+        cultivar: x => {
+            const c = (x.CULTIVAR || '').trim();
+            return c || null;
+        },
+        speciesCode: 'SP_CODE',
+        // DBH1 is the primary stem in inches (always populated). DBH2-6 are
+        // additional stems for multi-stem trees (0 when absent). DBHS is the
+        // stem count (1-6). We store DBH1 as the canonical dbh value and
+        // expose the other stems separately. DBH_LARGES is unused (max=0
+        // across entire dataset) so we skip it.
+        dbh: x => x.DBH1 ? Number(x.DBH1) * INCHES : null,
+        dbh2: x => x.DBH2 ? Number(x.DBH2) * INCHES : null,
+        dbh3: x => x.DBH3 ? Number(x.DBH3) * INCHES : null,
+        dbh4: x => x.DBH4 ? Number(x.DBH4) * INCHES : null,
+        dbh5: x => x.DBH5 ? Number(x.DBH5) * INCHES : null,
+        dbh6: x => x.DBH6 ? Number(x.DBH6) * INCHES : null,
+        stemCount: 'DBHS',
+        // Heights in feet -> meters
+        height: x => x.TR_HT_LIVE ? Number(x.TR_HT_LIVE) / FEET : null,
+        heightTotal: x => x.TREE_HT_TO ? Number(x.TREE_HT_TO) / FEET : null,
+        heightToCrown: x => x.HT_TO_BASE ? Number(x.HT_TO_BASE) / FEET : null,
+        crownWidth1: x => x.CR_WIDTH1 ? Number(x.CR_WIDTH1) / FEET : null,
+        crownWidth2: x => x.CRN_WIDTH2 ? Number(x.CRN_WIDTH2) / FEET : null,
+        crownRadius: x => x.CR_RADIUS ? Number(x.CR_RADIUS) / FEET : null,
+        // Condition fields — integer ratings 0-4, no published domain.
+        // Convention observed: 4 = best, 0 = worst/unknown. Stored raw.
+        health: 'TRHEALTH',
+        rootHealth: 'RTHEALTH',
+        rootStructure: 'RTSTRUCT',
+        rootDecay: 'RTDECAY',
+        trunkStructure: 'TRSTRUCT',
+        trunkDecay: 'TRDECAY',
+        trunkLean: 'TRLEAN',
+        trunkCavity: 'TRCAVITY',
+        trunkWound: 'TRWOUND',
+        scaffoldHealth: 'SCAFHEALTH',
+        dieback: 'DIEBACK',
+        // Risk factors (from tree-risk assessment protocol)
+        targetFrequency: 'TARFREQ',
+        targetSize: 'TARSIZE',
+        // Flags & location
+        champion: x => x.CHAMPION === 1 ? true : false,
+        plot: 'PLOT',
+        street: x => {
+            const s = (x.STREET || '').trim();
+            return s || null;
+        },
+        crownNotes: 'CROWNNOTES',
+        notes: 'NOTES',
+        updated: x => x.LASTUPDATE ? new Date(x.LASTUPDATE).toISOString() : null,
+    },
+},
+{
     // Added 2026-04-14: City of Ithaca tree inventory ("City Managed Trees")
     // hosted on ArcGIS Online by cmorrissey_IthacaNY. ~13,258 trees managed
     // on a 4-year inspection cycle, last edited 2024-09-26. Public access.

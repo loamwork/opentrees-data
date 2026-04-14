@@ -138,6 +138,7 @@ const DEFAULT_SOURCE_IDS = [
     'denver',
     'boulder',
     'pittsburgh',
+    'athens_uga',
     'atlanta',
     'atlanta_champion',
     'austin',

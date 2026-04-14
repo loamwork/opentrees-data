@@ -636,7 +636,23 @@
       "droppedNoGeo": 0,
       "durationSec": 58,
       "lastRunStatus": "ok"
+    },
+    "athens_uga": {
+      "sourceId": "athens_uga",
+      "short": "Athens (UGA)",
+      "long": "University of Georgia campus, Athens, Georgia",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services2.arcgis.com/PYn6bWCjT6bhw1z3/arcgis/rest/services/UGACampusTrees_GT5DBH/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://architects.uga.edu/",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2017-06-08T18:38:18.750Z",
+      "ingestedAt": "2026-04-14T15:36:13.516Z",
+      "recordCount": 3745,
+      "droppedNoGeo": 0,
+      "durationSec": 6,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T14:06:49.616Z"
+  "lastRefreshedAt": "2026-04-14T15:36:16.176Z"
 }
