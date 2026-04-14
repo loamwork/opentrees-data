@@ -119,7 +119,31 @@ function csvParse(text) {
 
 // ---------- Config ----------
 
-const DEFAULT_SOURCE_IDS = ['nyc', 'san_francisco', 'seattle'];
+// Default set of sources that get refreshed when no args are given. These are
+// the Pining-priority cities currently configured. Add more by extending this
+// list (and ensuring the corresponding entry exists in sources/).
+const DEFAULT_SOURCE_IDS = [
+    // First batch (committed earlier)
+    'nyc',
+    'san_francisco',
+    'seattle',
+    // Second batch
+    'madison',
+    'pdx-street',
+    'pdx-park',
+    'washington-dc',
+    'denver',
+    'boulder',
+    'pittsburgh',
+    'austin',
+    'mountain_view',
+    'san_jose',
+    'london',
+    'bristol',
+    'edinburgh',
+    'york',
+    'york-private',
+];
 
 const ARCGIS_PAGE_SIZE = 2000;
 const ARCGIS_PAGE_DELAY_MS = 150;
@@ -207,6 +231,17 @@ async function fetchCsvRows(url) {
 }
 
 /**
+ * Fetch a single-shot GeoJSON download (no pagination). Returns the array of
+ * features. Used for sources whose download URL returns the full FeatureCollection
+ * in one response (e.g. CKAN, Opendatasoft).
+ */
+async function fetchGeoJsonOnce(url) {
+    const data = await httpGetJson(url, { timeoutMs: 300_000 });
+    if (data.error) throw new Error(`GeoJSON error: ${JSON.stringify(data.error)}`);
+    return data.features || [];
+}
+
+/**
  * Fetch all features from a paginated ArcGIS REST FeatureServer query endpoint.
  * Iterates with resultOffset until the server returns fewer features than
  * pageSize. Returns array of GeoJSON Feature objects (because the source URL
@@ -223,9 +258,19 @@ async function fetchArcgisGeoJsonAll(baseUrl) {
             throw new Error(`ArcGIS error: ${JSON.stringify(data.error)}`);
         }
         const features = data.features || [];
+        // Stop conditions:
+        //   1. We got 0 features (we're past the end of the dataset).
+        //   2. ArcGIS explicitly says we got everything (exceededTransferLimit
+        //      is false — only present in f=json responses, not f=geojson, but
+        //      we honor it when available).
+        // We do NOT use features.length < ARCGIS_PAGE_SIZE because some servers
+        // have a per-layer maxRecordCount smaller than our requested pageSize
+        // (Madison = 1000, Portland's MapServer = 200), which would cause us
+        // to break on the first page even though more data exists.
+        if (features.length === 0) break;
         allFeatures.push(...features);
         process.stdout.write(`  fetched ${allFeatures.length}\r`);
-        if (features.length < ARCGIS_PAGE_SIZE) break;
+        if (data.exceededTransferLimit === false) break;
         offset += features.length;
         if (ARCGIS_PAGE_DELAY_MS) {
             await new Promise(r => setTimeout(r, ARCGIS_PAGE_DELAY_MS));
@@ -278,10 +323,13 @@ function extractCsvLatLon(row) {
         ['latitude', 'longitude'],
         ['Latitude', 'Longitude'],
         ['LATITUDE', 'LONGITUDE'],
+        ['LATITUDE', 'LONGTITUDE'], // Austin CSV (uppercase + typo)
+        ['latitude', 'longtitude'], // lowercase variant of Austin's typo
         ['lat', 'lon'],
         ['lat', 'lng'],
         ['Y', 'X'],
         ['y', 'x'],
+        ['y_lat', 'x_long'],         // Denver's column names
     ];
     for (const [latKey, lonKey] of candidates) {
         if (row[latKey] != null && row[lonKey] != null) {
@@ -356,6 +404,18 @@ async function refreshOneSource(source) {
         for (const f of features) {
             const props = f.properties || {};
             // GeoJSON: geometry.coordinates = [lon, lat]
+            let latLon = { lat: null, lon: null };
+            if (f.geometry && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates.length >= 2) {
+                latLon = { lon: Number(f.geometry.coordinates[0]), lat: Number(f.geometry.coordinates[1]) };
+            }
+            const rec = makeCanonicalRecord(props, source, latLon, sourceLastUpdated, ingestedAt);
+            if (rec) records.push(rec);
+        }
+    } else if (source.format === 'geojson') {
+        const features = await fetchGeoJsonOnce(source.download);
+        console.log(`  fetched ${features.length} GeoJSON features`);
+        for (const f of features) {
+            const props = f.properties || {};
             let latLon = { lat: null, lon: null };
             if (f.geometry && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates.length >= 2) {
                 latLon = { lon: Number(f.geometry.coordinates[0]), lat: Number(f.geometry.coordinates[1]) };

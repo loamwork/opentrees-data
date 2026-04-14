@@ -15,56 +15,87 @@ function feet(field) {
 
 module.exports = [
 {
+    // Updated 2026-04-13: stevage's old opendata.arcgis.com zip URL is dead.
+    // Migrated to Madison's MapServer "Street Trees" layer at maps.cityofmadison.com.
+    // New schema uses SPP_BOT (scientific) / SPP_COM (common) instead of SPECIES.
     id: 'madison',
-    download: 'https://opendata.arcgis.com/datasets/b700541a20e446839b18d62426c266a3_0.zip',
-    format: 'zip',
+    download: 'https://maps.cityofmadison.com/arcgis/rest/services/Public/OPEN_DATA/MapServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.cityofmadison.com/engineering/projects/street-trees',
+    sourceMetadataUrl: 'https://maps.cityofmadison.com/arcgis/rest/services/Public/OPEN_DATA/MapServer/0?f=json',
+    format: 'arcgis-rest',
     short: 'Madison',
     country: 'USA',
-    filename: 'Street_Trees.shp',
     crosswalk: {
-        common: 'SPECIES',
-        dbh: x => Number(x.DIAMETER) * INCHES
+        ref: 'site_id',
+        scientific: 'SPP_BOT',
+        common: 'SPP_COM',
+        dbh: x => x.DIAMETER ? Number(x.DIAMETER) * INCHES : null,
+        size: 'GSSIZE',
+        status: 'STATUS',
     }
 },
 {
+    // Updated 2026-04-13: stevage's old opendata.arcgis.com URL is dead. Migrated
+    // to portlandmaps.com MapServer layer 1415 ("Street Tree Inventory - Active
+    // Records"). This is the new comprehensive 2022-2024 inventory (~252K
+    // records). The schema is much smaller than the old one — the new dataset
+    // collapses scientific + common into a single "SPECIES" field of the form
+    // "Genus species - Common name" which we split in the crosswalk.
     id: 'pdx-street',
-    download: 'https://opendata.arcgis.com/datasets/eb67a0ad684d4bb6afda51dc065d1664_25.zip',
-    format: 'zip',
-    filename: 'Street_Trees.shp',
+    download: 'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Environment/MapServer/1415/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://gis-pdx.opendata.arcgis.com/datasets/PDX::street-tree-inventory-active-records',
+    sourceMetadataUrl: 'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Environment/MapServer/1415?f=json',
+    format: 'arcgis-rest',
     short: 'Portland',
     long: 'Portland, Oregon',
     country: 'USA',
     crosswalk: {
-        scientific: 'Scientific',
-        genus: 'Genus',
-        family: 'Family',
-        common: 'Common',
+        ref: 'OBJECTID',
+        // Source SPECIES is "Genus species - Common name"; split.
+        scientific: x => x.SPECIES ? String(x.SPECIES).split(' - ')[0] : null,
+        common:     x => x.SPECIES ? String(x.SPECIES).split(' - ')[1] || null : null,
+        dbh: x => x.DIAMETER ? Math.round(x.DIAMETER * INCHES * 10) / 10 : null,
         health: 'Condition',
-        dbh: x => Math.round(x.DBH * 2.54 * 10) / 10, // assume inches
-        note: 'Notes',
-        //Size, Edible, Species_De, DBH, Species (two letters), Planted_By, Plant_Date, Collected_, NEighborho, Address, Functional, Notes, Site_Size,Site_Devel, Wires, Site_Width,Site_Type,
-        // { 'type': 'Feature', 'properties': { 'OBJECTID': 1, 'Date_Inven': '2010-08-21T00:00:00.000Z', 'Species': 'CO', 'DBH': 1.0, 'Condition': 'Good', 'Site_Type': null, 'Site_Width': 9.0, 'Wires': 'High voltage', 'Site_devel': 'Improved', 'Site_Size': 'Medium', 'Notes': null, 'Address': '5234 NE 35TH PL', 'Neighborho': 'CONCORDIA', 'Collected_': 'volunteer', 'Planted_By': null, 'Plant_Date': null, 'Scientific': 'Cornus spp.', 'Family': 'Cornaceae', 'Genus': 'Cornus', 'Common': 'dogwood', 'Functional': 'BD', 'Size': 'S', 'Edible': 'no', 'Species_De': null }, 'geometry': { 'type': 'Point', 'coordinates': [ -122.627555010562858, 45.561116824606664 ] } },
+        size: 'MATURE_SIZE',
+        type: 'FUNCTIONAL_TYPE',
+        location: 'Site_Type',
+        address: 'Address',
     },
 },
 {
+    // Updated 2026-04-13: stevage's old opendata.arcgis.com URL is dead. Migrated
+    // to portlandmaps.com MapServer layer 220 ("Parks Tree Inventory" — the
+    // layer ID was preserved across the migration). The new schema has the full
+    // field names (Genus_species, Common_name, Species_factoid) instead of
+    // stevage's 10-char shapefile truncations. Also two crown widths (NS+EW)
+    // averaged into one. ~25K records.
     id: 'pdx-park',
-    download: 'https://opendata.arcgis.com/datasets/83a7e3f6a1d94db09f24849ee90f4be2_220.zip?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D&session=undefined',
-    format: 'zip',
-    filename: 'Parks_Tree_Inventory.shp',
+    download: 'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Environment/MapServer/220/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://gis-pdx.opendata.arcgis.com/maps/parks-tree-inventory',
+    sourceMetadataUrl: 'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Environment/MapServer/220?f=json',
+    format: 'arcgis-rest',
     short: 'Portland, Oregon',
     long: 'Portland, Oregon',
     country: 'USA',
     crosswalk: {
-        dbh: x => Math.round(x.DBH * 2.54 * 10) / 10, // assume inches
-        height: x => Math.round(x.HEIGHT / 3.280084 * 10) / 10, // assume feet
+        ref: 'OBJECTID',
+        dbh: x => x.DBH ? Math.round(x.DBH * INCHES * 10) / 10 : null,
+        height: x => x.TreeHeight ? Math.round(x.TreeHeight / FEET * 10) / 10 : null,
+        crown: x => {
+            const ns = Number(x.CrownWidthNS) || 0;
+            const ew = Number(x.CrownWidthEW) || 0;
+            const avg = (ns + ew) / 2;
+            return avg > 0 ? Math.round(avg / FEET * 10) / 10 : null;
+        },
         health: 'Condition',
-        crown: 'CrownWidth', // inches??
         family: 'Family',
-        // genus: 'Genus',
-        scientific: 'Genus_spec',
-        common: 'Common_nam',
-        description: 'Species_fa',
-        // lots more
+        genus: 'Genus',
+        scientific: 'Genus_species',
+        common: 'Common_name',
+        description: 'Species_factoid',
+        size: 'Size',
+        native: 'Native',
+        edible: 'Edible',
     },
     primary: 'pdx-street',
 },
@@ -106,27 +137,31 @@ module.exports = [
     centre: [-71.43, 41.83],
 },
 {
+    // Updated 2026-04-13: stevage's old opendata.arcgis.com URL is dead. Migrated
+    // to maps2.dcgis.dc.gov MapServer "UFA Street Trees" layer 23. Common name
+    // field is CMMN_NM (not COMMON.NAME like the old shapefile name). Schema
+    // also exposes DBH directly + LAST_EDITED_DATE for freshness.
     id: 'washington-dc',
-    download: 'https://opendata.arcgis.com/datasets/f6c3c04113944f23a7993f2e603abaf2_23.zip',
-    format: 'zip',
-    filename: 'Urban_Forestry_Street_Trees.shp',
+    download: 'https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Urban_Tree_Canopy/MapServer/23/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://opendata.dc.gov/datasets/urban-forestry-street-trees',
+    sourceMetadataUrl: 'https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Urban_Tree_Canopy/MapServer/23?f=json',
+    format: 'arcgis-rest',
     short: 'Washington DC',
     long: 'Washington DC',
     country: 'USA',
     centre: [-77, 38.92],
     crosswalk: {
-        dbh: x => x.DBH * 2.54, 
-        common: 'COMMON.NAME',
+        ref: 'FACILITYID',
+        dbh: x => x.DBH ? Number(x.DBH) * INCHES : null,
+        common: 'CMMN_NM',
         scientific: 'SCI_NM',
-        planted: 'DATE_PLANT',
+        genus: 'GENUS_NAME',
         family: 'FAM_NAME',
-        // simpler to not populate genus and have it extracted from scientific
-        // genus: 'GENUS_NAME',
+        planted: x => x.DATE_PLANT ? new Date(x.DATE_PLANT).toISOString() : null,
+        updated: x => x.LAST_EDITED_DATE ? new Date(x.LAST_EDITED_DATE).toISOString() : null,
         note: 'TREE_NOTES',
         health: 'CONDITION',
-        // maybe ref: 'FACILITYID'
-
-
+        owner: 'OWNERSHIP',
     },
 },
 
@@ -201,41 +236,64 @@ module.exports = [
     }
 }, 
 {
+    // Verified 2026-04-13: stevage's URL still works but the field names in
+    // their crosswalk were all wrong-cased (UPPERCASE) — the actual CSV columns
+    // are lowercase: site_id / species_botanic / species_common / diameter /
+    // y_lat / x_long. Diameter is a range string like "0 to 6" or "13 to 18",
+    // not numeric — we extract the midpoint.
     id: 'denver',
     download: 'https://data.colorado.gov/api/views/wz8h-dap6/rows.csv?accessType=DOWNLOAD',
+    info: 'https://data.colorado.gov/Communities-and-Education/Denver-Tree-Inventory/wz8h-dap6',
+    sourceMetadataUrl: 'https://data.colorado.gov/api/views/wz8h-dap6.json',
     format: 'csv',
     short: 'Denver',
     country: 'USA',
     crosswalk: {
-        ref: 'SITE_ID',
-        scientific: 'SPECIES_BO',
-        common: 'SPECIES_CO',
-        dbh: 'DIAMETER',
-        location: 'LOCATION_NAME',
-
+        ref: 'site_id',
+        scientific: 'species_botanic',
+        common: 'species_common',
+        // Diameter is a range string like "0 to 6", "13 to 18", "25 to 30" (in inches).
+        // Extract the midpoint and convert to cm.
+        dbh: x => {
+            if (!x.diameter) return null;
+            const m = String(x.diameter).match(/^(\d+)\s*to\s*(\d+)$/i);
+            if (!m) return null;
+            const midInches = (Number(m[1]) + Number(m[2])) / 2;
+            return Math.round(midInches * INCHES * 10) / 10;
+        },
+        health: 'condition',
+        location: 'location_name',
+        address: x => x.address && x.street ? `${x.address} ${x.street}` : null,
+        neighbor: 'neighbor',
+        notable: 'notable',
     },
     centre: [-104.9454,39.7273],
-    
+
 }, 
 {
+    // Updated 2026-04-13: stevage's old opendata.arcgis.com URL is dead. Migrated
+    // to gis.bouldercolorado.gov MapServer (Boulder runs their own ArcGIS
+    // Server). ~50K records. Stevage's original `dbh: x => 'DBHINT' * 2.54` was
+    // a long-standing bug (string * number = NaN) — now fixed to use x.DBHINT.
     id: 'boulder',
     country: 'USA',
-    download: 'https://opendata.arcgis.com/datasets/dbbae8bdb0a44d17934243b88e85ef2b_0.zip',
-    info: 'https://data-boulder.opendata.arcgis.com/datasets/dbbae8bdb0a44d17934243b88e85ef2b_0',
-    format: 'zip',
+    download: 'https://gis.bouldercolorado.gov/ags_svr2/rest/services/parks/TreesOpenData/MapServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://open-data.bouldercolorado.gov/datasets/trees',
+    sourceMetadataUrl: 'https://gis.bouldercolorado.gov/ags_svr2/rest/services/parks/TreesOpenData/MapServer/0?f=json',
+    format: 'arcgis-rest',
     short: 'Boulder',
     long: 'City of Boulder, Colorado',
-    filename: 'Tree_Inventory.shp',
     crosswalk: {
+        ref: 'FACILITYID',
         scientific: 'LATINNAME',
         common: 'COMMONNAME',
+        genus: 'GENUS',
         variety: 'CULTIVAR',
-        dbh: x => 'DBHINT' * 2.54,
+        dbh: x => x.DBHINT ? Number(x.DBHINT) * INCHES : null, // fixed bug
         location: 'LOCTYPE',
-        // also interesting attributes on deciduous, broadlaved etc.
-
+        owner: 'OWNEDBY',
+        updated: x => x.LAST_EDITED_DATE ? new Date(x.LAST_EDITED_DATE).toISOString() : null,
     },
-
 },
 {
     id: 'cambridge',
@@ -275,6 +333,11 @@ module.exports = [
 
 },
 {
+    // Verified 2026-04-13: stevage's URL still works. Pittsburgh's tree inventory
+    // lives on data.wprdc.org (Western Pennsylvania Regional Data Center, CKAN
+    // backed). No programmatic freshness lookup configured — CKAN dataset
+    // metadata format is different from Socrata/ArcGIS; sourceLastUpdated stays
+    // null until we add CKAN support.
     id: 'pittsburgh',
     country: 'USA',
     download: 'https://data.wprdc.org/dataset/9ce31f01-1dfa-4a14-9969-a5c5507a4b40/resource/d876927a-d3da-44d1-82e1-24310cdb7baf/download/trees_img.geojson',
@@ -312,22 +375,31 @@ module.exports = [
 },
 
 {
+    // Updated 2026-04-13: stevage's old 7aq7-a66u dataset returned 404. Switched
+    // to wrik-xasw ("Tree Inventory"), the current Austin canonical inventory.
+    // Compiled from multiple internal Austin sources (Tree Division, AISD,
+    // Parks/Rec, downtown 2013 inventory). Only contains species + diameter
+    // (no scientific name, no condition, no height). Source data dates from
+    // March 2020 — Austin hasn't published a refresh since.
+    // Note the source's typo: "longtitude" (with an extra T).
     id:'austin',
     country: 'USA',
     short: 'Austin',
     long: '',
-    download: 'https://data.austintexas.gov/api/views/7aq7-a66u/rows.csv?accessType=DOWNLOAD',
-    info:'https://catalog.data.gov/dataset/downtown-tree-inventory-2013',
+    download: 'https://data.austintexas.gov/api/views/wrik-xasw/rows.csv?accessType=DOWNLOAD',
+    info:'https://data.austintexas.gov/Locations-and-Maps/Tree-Inventory/wrik-xasw',
+    sourceMetadataUrl: 'https://data.austintexas.gov/api/views/wrik-xasw.json',
     format: 'csv',
     crosswalk: {
-        scientific: 'SPECIES',
-        common: 'COM_NAME',
-        dbh: x => x.DBH * INCHES,
-        height: x => x.HEIGHT / FEET,
-        health: 'CONDITION',
-        location: 'LAND_TYPE',
-
-
+        // Austin's CSV has no per-tree primary key column — it's a compilation
+        // of tree points with just SPECIES, DIAMETER, LATITUDE, LONGTITUDE. We
+        // synthesize a stable ref from the coordinates. CSV column names are
+        // UPPERCASE in the bulk download (Socrata's CSV uses display names);
+        // the JSON API uses lowercase but we're not using the JSON API.
+        // Note the source's typo: LONGTITUDE (with extra T).
+        ref: x => `${x.LATITUDE}_${x.LONGTITUDE}`,
+        common: 'SPECIES', // common name only — no scientific in this dataset
+        dbh: x => x.DIAMETER ? Number(x.DIAMETER) * INCHES : null,
     }
 },
 {
@@ -527,25 +599,31 @@ module.exports = [
     }
 },
 {
+    // Updated 2026-04-13: stevage's old opendata.arcgis.com URL is dead. Migrated
+    // to maps.mountainview.gov MapServer "Trees" layer 0. ~35K records. New
+    // schema has BOTNAME (botanical/scientific) as a separate field from
+    // SPECIES; SPECIES looks like a code/short form. NAME is the common name.
+    // No CONDITION or LASTUPDATE in the new schema — those mappings dropped.
     id:'mountain_view',
     short: 'Mountain View',
     long: 'City of Mountain View',
-    download: 'https://opendata.arcgis.com/datasets/72667718eb9b427d95b6eb55e25c36a7_0.csv',
-    info:'http://hub.arcgis.com/datasets/MountainView::trees',
-    format: '',
+    download: 'https://maps.mountainview.gov/arcgis/rest/services/Public/Trees/MapServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info:'https://gisdata-csj.opendata.arcgis.com/maps/MountainView::trees',
+    sourceMetadataUrl: 'https://maps.mountainview.gov/arcgis/rest/services/Public/Trees/MapServer/0?f=json',
+    format: 'arcgis-rest',
     crosswalk: {
-        scientific: 'SPECIES',
-        common: 'NAME',
         ref: 'FACILITYID',
-        age: 'TREEAGE',
-        dbh: inches('DIAMETER'), // TRUNKDIAM?
-        height: feet('HEIGHT'),
-        planted: 'INSTALLDATE',
-        health: 'CONDITION',
-        updated: 'LASTUPDATE',
-        // TROUPGROUP: deciduous/evergreen
-
-
+        scientific: 'BOTNAME',
+        common: 'NAME',
+        species: 'SPECIES',
+        variety: 'Variety',
+        dbh: x => x.DIAMETER ? Number(x.DIAMETER) * INCHES : null,
+        height: x => x.HEIGHT ? Number(x.HEIGHT) / FEET : null,
+        circumference: 'Circumference',
+        planted: x => x.INSTALLDATE ? new Date(x.INSTALLDATE).toISOString() : null,
+        location: 'PROPSIDE',
+        zone: 'PLANTINGZONE',
+        heritage: 'HERITAGE',
     }
 },
 {
@@ -1088,65 +1166,33 @@ module.exports = [
     }
 },
 {
-    id:'san_jose_ca1',
+    // Updated 2026-04-13: stevage had three separate San Jose entries (medians,
+    // special districts, general fund) on opendata.arcgis.com URLs that all
+    // returned 400. The current canonical San Jose street tree inventory is a
+    // single consolidated dataset on geo.sanjoseca.gov MapServer layer 510
+    // ("Street Trees"). This entry replaces all three. The old field names
+    // (NAMESCIENTIFIC, DIAMETER, HEIGHT, TRUNKDIAM, CONDITION, OWNEDBY, NOTES)
+    // all carry over.
+    id:'san_jose',
     short: 'San Jose',
-    long: 'San Jose Medians and Backups',
-    download: 'https://opendata.arcgis.com/datasets/0b0ad30145394b1588ff09ef1a7c9225_1.csv',
-    info:'http://hub.arcgis.com/datasets/csjdotgis::trees-medians-and-backups',
-    format: '',
+    long: 'City of San Jose',
+    download: 'https://geo.sanjoseca.gov/server/rest/services/OPN/OPN_OpenDataService/MapServer/510/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://gisdata-csj.opendata.arcgis.com/datasets/7db16e012fe8402db45074cd260c8f4e',
+    sourceMetadataUrl: 'https://geo.sanjoseca.gov/server/rest/services/OPN/OPN_OpenDataService/MapServer/510?f=json',
+    format: 'arcgis-rest',
     crosswalk: {
+        ref: 'FACILITYID',
         scientific: 'NAMESCIENTIFIC',
-        age: 'TREEAGE',
-        dbh: inches('TRUNKDIAM'),
-        height: feet('HEIGHT'),
-        crown: feet('DIAMETER'),
-        health: x=> String(x.CONDITION).split(' ')[0],
+        dbh: x => x.TRUNKDIAM ? Number(x.TRUNKDIAM) * INCHES : null,
+        height: x => x.HEIGHT ? Number(x.HEIGHT) / FEET : null,
+        crown: x => x.DIAMETER ? Number(x.DIAMETER) / FEET : null, // SJ DIAMETER = crown spread, not trunk
+        health: x => x.CONDITION ? String(x.CONDITION).split(' ')[0] : null,
         note: 'NOTES',
-        updated: 'EditDate',
         owner: 'OWNEDBY',
-
+        planted: x => x.INSTALLDATE ? new Date(x.INSTALLDATE).toISOString() : null,
+        updated: x => x.LASTUPDATE ? new Date(x.LASTUPDATE).toISOString() : null,
+        address: x => x.ADDRESSNUM && x.STREETNAME ? `${x.ADDRESSNUM} ${x.STREETNAME}` : null,
     }
-},
-{
-    id:'san_jose_ca2',
-    short: 'San Jose',
-    long: 'San Jose Special Districts',
-    download: 'https://opendata.arcgis.com/datasets/0b0ad30145394b1588ff09ef1a7c9225_0.csv',
-    info:'http://hub.arcgis.com/datasets/csjdotgis::trees-special-districts',
-    format: '',
-    crosswalk: {
-        scientific: 'NAMESCIENTIFIC',
-        age: 'TREEAGE',
-        dbh: inches('TRUNKDIAM'),
-        height: feet('HEIGHT'),
-        crown: feet('DIAMETER'),
-        health: x=> String(x.CONDITION).split(' ')[0],
-        note: 'NOTES',
-        updated: 'EditDate',
-        owner: 'OWNEDBY',
-    },
-    primary: 'san_jose_ca1'
-
-},
-{
-    id:'san_jose_ca3',
-    short: 'San Jose',
-    long: 'San Jose General Fund',
-    download: 'https://opendata.arcgis.com/datasets/0b0ad30145394b1588ff09ef1a7c9225_2.csv',
-    info:'http://hub.arcgis.com/datasets/csjdotgis::trees-general-fund-street',
-    format: '',
-    crosswalk: {
-        scientific: 'NAMESCIENTIFIC',
-        age: 'TREEAGE',
-        dbh: inches('TRUNKDIAM'),
-        height: feet('HEIGHT'),
-        crown: feet('DIAMETER'),
-        health: x=> String(x.CONDITION).split(' ')[0],
-        note: 'NOTES',
-        updated: 'EditDate',
-        owner: 'OWNEDBY',
-    },
-    primary: 'san_jose_ca1'
 },
 // maybe https://opendata.arcgis.com/datasets/a31898f9fff4417ab6f784c9b4fe5f43_27.csv
 

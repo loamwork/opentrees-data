@@ -20,9 +20,15 @@ module.exports = [
         },
     },
     {
+        // Verified 2026-04-13: stevage's URL still works (redirects to a CDN
+        // path). The London Street Trees dataset is a snapshot from 2018-02-14
+        // (per the filename); GLA hasn't published a refreshed bulk dataset
+        // since. No programmatic freshness lookup configured (data.london.gov.uk
+        // is CKAN-backed; Pining will surface this as "as of 2018-02").
         id: 'london',
         download:
             'https://data.london.gov.uk/download/local-authority-maintained-trees/c52e733d-bf7e-44b8-9c97-827cb2bc53be/london_street_trees_gla_20180214.csv',
+        info: 'https://data.london.gov.uk/dataset/local-authority-maintained-trees',
         format: 'csv',
         short: 'London',
         long: 'Greater London Authority',
@@ -34,6 +40,7 @@ module.exports = [
             scientific: 'species_name',
             common: 'common_name',
             description: 'display_name',
+            borough: 'borough',
             //gla_id,borough,species_name,common_name,display_name,load_date,easting,northing,longitude,latitude
         },
     },
@@ -53,39 +60,77 @@ module.exports = [
         centre: [-1.8673, 52.47],
     },
     {
+        // Updated 2026-04-13: stevage's old opendata.bristol.gov.uk Opendatasoft
+        // download URL now serves only the HTML landing page. Migrated to the
+        // city's MapServer "Trees" layer 32 at maps2.bristol.gov.uk. ~56K
+        // records. New schema uses uppercase field names and stores measurements
+        // as strings with units ("15 Metres", "No Code Allocated"). Spatial
+        // reference is British National Grid; we reproject to WGS84 in the
+        // query.
         id: 'bristol',
         country: 'UK',
-        download:
-            'https://opendata.bristol.gov.uk/explore/dataset/trees/download/?format=geojson&timezone=Australia/Sydney&lang=en',
-        info: 'https://opendata.bristol.gov.uk/explore/dataset/trees/export/',
-        format: 'geojson',
+        download: 'https://maps2.bristol.gov.uk/server2/rest/services/ext/ll_environment_and_planning/MapServer/32/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+        info: 'https://open-data-bristol-bcc.hub.arcgis.com/datasets/trees-2/about',
+        sourceMetadataUrl: 'https://maps2.bristol.gov.uk/server2/rest/services/ext/ll_environment_and_planning/MapServer/32?f=json',
+        format: 'arcgis-rest',
         crosswalk: {
-            dbh: 'dbh',
-            height: 'crown_height',
-            common: 'common_name',
-            scientific: 'latin_name',
-            common: 'full_common_name',
-            crown: x => x['crown_width'],
+            ref: 'ASSET_ID',
+            scientific: 'LATIN_NAME',
+            common: 'FULL_COMMON_NAME',
+            commonShort: 'COMMON_NAME',
+            // DBH is stored as a string ("No Code Allocated" or rarely a numeric value).
+            // Parse only if it looks numeric.
+            dbh: x => {
+                if (!x.DBH || x.DBH === 'No Code Allocated') return null;
+                const n = parseFloat(String(x.DBH));
+                return Number.isFinite(n) ? n : null;
+            },
+            // Height/crown are strings like "15 Metres" — parse the leading number.
+            height: x => {
+                if (!x.CROWN_HEIGHT) return null;
+                const m = String(x.CROWN_HEIGHT).match(/(\d+(?:\.\d+)?)/);
+                return m ? Number(m[1]) : null;
+            },
+            crown: x => {
+                if (!x.CROWN_WIDTH) return null;
+                const m = String(x.CROWN_WIDTH).match(/(\d+(?:\.\d+)?)/);
+                return m ? Number(m[1]) : null;
+            },
+            location: 'SITE_NAME',
+            type: 'TYPE',
+            updated: x => x.last_edited_date ? new Date(x.last_edited_date).toISOString() : null,
+            dead: 'DEAD',
         },
         short: 'Bristol',
     },
     {
+        // Updated 2026-04-13: stevage's old data.edinburghcouncilmaps.info zip URL
+        // returned 403 (subscription canceled). The current Edinburgh Council
+        // tree inventory is on services-eu1.arcgis.com (the EU-region ArcGIS
+        // Online cluster — confirms UK location), service "Trees", on layer
+        // 41 specifically (uncommon ID, not 0). ~50K records. Source spatial
+        // reference is British National Grid (wkid 27700); we reproject to
+        // WGS84 in the query. DiameterAtBreastHeight is now the full field name
+        // (was truncated to DiameterAt in stevage's old shapefile).
         id: 'edinburgh',
         country: 'UK',
         short: 'Edinburgh',
-        long: '',
-        download:
-            'https://data.edinburghcouncilmaps.info/datasets/4dfc8f18a40346009b9fc32cbee34039_39.zip',
-        info:
-            'https://data.edinburghcouncilmaps.info/datasets/4dfc8f18a40346009b9fc32cbee34039_39',
-        format: 'zip',
+        long: 'City of Edinburgh Council',
+        download: 'https://services-eu1.arcgis.com/FgpikkYuSUOuITxp/arcgis/rest/services/Trees/FeatureServer/41/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+        info: 'https://city-of-edinburgh-council-open-spatial-data-cityofedinburgh.hub.arcgis.com/datasets/cityofedinburgh::trees/about',
+        sourceMetadataUrl: 'https://services-eu1.arcgis.com/FgpikkYuSUOuITxp/arcgis/rest/services/Trees/FeatureServer/41?f=json',
+        format: 'arcgis-rest',
         crosswalk: {
+            ref: 'PrimaryKey',
             scientific: 'LatinName',
             common: 'CommonName',
             height: 'Height',
             spread: 'Spread',
             maturity: 'AgeGroup',
-            bh: 'DiameterAt',
+            dbh: 'DiameterAtBreastHeight',
+            owner: 'Owner',
+            ward: 'Ward',
+            site: 'Site',
         },
     },
     {
@@ -107,35 +152,46 @@ module.exports = [
         },
     },
     {
+        // Updated 2026-04-13: stevage's old opendata.arcgis.com URL is dead.
+        // Migrated to maps.york.gov.uk MapServer "EnvPlan" layer 3 ("Council
+        // trees"). ~20K records. Field names unchanged from stevage's
+        // crosswalk — just the URL needed updating.
         id: 'york',
         country: 'UK',
         short: 'York',
         long: 'City of York Council',
-        download:
-            'https://opendata.arcgis.com/datasets/30f38f358843467daa2d93074a03b8d5_3.csv',
-        info:
-            'https://data.gov.uk/dataset/12dcc527-a7e2-4b23-a3c5-1501053ff0f5/council-owned-trees',
-        format: 'csv',
+        download: 'https://maps.york.gov.uk/arcgis/rest/services/Public/EnvPlan/MapServer/3/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+        info: 'https://data.gov.uk/dataset/12dcc527-a7e2-4b23-a3c5-1501053ff0f5/council-owned-trees',
+        sourceMetadataUrl: 'https://maps.york.gov.uk/arcgis/rest/services/Public/EnvPlan/MapServer/3?f=json',
+        format: 'arcgis-rest',
         crosswalk: {
             ref: 'TREEID',
             scientific: 'BOTANICAL',
             common: 'SPECIES',
+            site: 'SITE_NAME',
+            owner: 'OWNER',
+            planted: 'Planted',
         },
     },
     {
+        // Updated 2026-04-13: same migration as the council trees entry above —
+        // moved to maps.york.gov.uk MapServer "EnvPlan" layer 18 ("Private
+        // trees"). ~1.1K records.
         id: 'york-private',
         country: 'UK',
         short: 'York',
-        long: '',
-        download:
-            'https://opendata.arcgis.com/datasets/a602aca10afb49659720b435d3f54023_18.csv',
-        info:
-            'https://data.gov.uk/dataset/c166b067-5a9d-487b-a37d-4d350f8cff51/private-trees',
-        format: 'csv',
+        long: 'York privately-owned trees',
+        download: 'https://maps.york.gov.uk/arcgis/rest/services/Public/EnvPlan/MapServer/18/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+        info: 'https://data.gov.uk/dataset/c166b067-5a9d-487b-a37d-4d350f8cff51/private-trees',
+        sourceMetadataUrl: 'https://maps.york.gov.uk/arcgis/rest/services/Public/EnvPlan/MapServer/18?f=json',
+        format: 'arcgis-rest',
         crosswalk: {
+            ref: 'TREEID',
             owner: 'OWNER',
             common: 'SPECIES',
             scientific: 'BOTANICAL',
+            site: 'SITE_NAME',
+            planted: 'Planted',
         },
         primary: 'york',
     },
