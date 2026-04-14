@@ -741,6 +741,117 @@ module.exports = [
     primary: 'austin',
 },
 {
+    // Added 2026-04-14: Atlanta GA tree inventory. Trees Atlanta is the major
+    // urban forestry nonprofit operating in the city — they plant and maintain
+    // most of Atlanta's documented trees and host the city's de facto open
+    // tree dataset on ArcGIS Online (the City of Atlanta itself doesn't
+    // publish a comparable street tree inventory). 85,988 records of trees
+    // they've planted, with full taxonomy (Genus, Species, Cultivar), planting
+    // date, neighborhood, Atlanta NPU (Neighborhood Planning Unit), quadrant,
+    // utilities, growth space, planted-by, program, status. Last edited
+    // 2023-05-10.
+    id: 'atlanta',
+    download: 'https://services5.arcgis.com/HPK9d3vzjakSFUjJ/arcgis/rest/services/Trees_Atlanta_Historic_Plantings/FeatureServer/1/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.treesatlanta.org/resources/tree-inventory/',
+    sourceMetadataUrl: 'https://services5.arcgis.com/HPK9d3vzjakSFUjJ/arcgis/rest/services/Trees_Atlanta_Historic_Plantings/FeatureServer/1?f=json',
+    format: 'arcgis-rest',
+    short: 'Atlanta',
+    long: 'Trees Atlanta — Plant Inventory',
+    country: 'USA',
+    crosswalk: {
+        ref: 'FID',
+        genus: 'Genus',
+        species: 'Species',
+        scientific: x => {
+            const g = (x.Genus || '').trim();
+            const s = (x.Species || '').trim();
+            if (!g) return null;
+            return s ? `${g} ${s}` : g;
+        },
+        cultivar: 'Cultivar',
+        plantedSize: 'PlantedSiz',         // truncated 10-char field name
+        forestLayer: 'ForestLaye',
+        neighborhood: 'Neighborho',
+        npu: 'NPU',                        // Neighborhood Planning Unit
+        quadrant: 'Quadrant',
+        district: 'District',
+        county: 'County',
+        plantedBy: 'PlantedBy',
+        program: 'Program',
+        plantType: 'PlantType',
+        planted: x => x.PlantedDat ? new Date(x.PlantedDat).toISOString() : null,
+        plantingSeason: 'PlantingSe',
+        accNum: 'AccNUM',
+        parcelNum: 'ParcelNUM',
+        utilities: 'Utilities',
+        growSpace: 'GrowthSpac',
+        location: 'StreetPark',           // Street vs Park
+        notes: 'Notesabout',
+        status: 'Status',
+        statusDate: x => x.StatusDate ? new Date(x.StatusDate).toISOString() : null,
+        statusComments: 'StatusComm',
+        maintenance: 'Maintenanc',
+        specialProject: 'SpecialPro',
+        replacement: 'Replacemen',
+    },
+},
+{
+    // Added 2026-04-14: Atlanta Champion Trees — 437 trees designated as the
+    // largest of their species in the Atlanta area, maintained by Trees
+    // Atlanta. Full measurements (circumference inches AND feet, height feet,
+    // spread feet, total points earned via American Forests scoring), year
+    // nominated, ranking, status, and notes. Last edited 2026-02-23.
+    // Hero-tier dataset: heritage: true on every record.
+    id: 'atlanta_champion',
+    download: 'https://services6.arcgis.com/BZn8g8tzu5WfMokL/arcgis/rest/services/TreeChampionData_2019/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.treesatlanta.org/resources/tree-inventory/',
+    sourceMetadataUrl: 'https://services6.arcgis.com/BZn8g8tzu5WfMokL/arcgis/rest/services/TreeChampionData_2019/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Atlanta Champions',
+    long: 'Atlanta Champion Trees Registry',
+    country: 'USA',
+    crosswalk: {
+        ref: 'OBJECTID',
+        genus: 'Genus',
+        species: 'Species',
+        scientific: x => {
+            const g = (x.Genus || '').trim();
+            const s = (x.Species || '').trim();
+            if (!g) return null;
+            return s ? `${g} ${s}` : g;
+        },
+        common: 'CommonName',
+        yearNominated: 'YearNominated',
+        ranking: 'Ranking',
+        points: 'TotalPointsEarned',
+        locationType: 'LocationType',
+        locationNotes: 'LocationNotes',
+        // CircumferenceFT and CircumferenceIN both exist; use whichever has data
+        circumference: x => {
+            if (x.CircumferenceIN) return Math.round(Number(x.CircumferenceIN) * INCHES * 10) / 10;
+            if (x.CircumferenceFT) return Math.round(Number(x.CircumferenceFT) * 30.48 * 10) / 10;
+            return null;
+        },
+        height: x => x.HeightFT ? Number(x.HeightFT) / FEET : null,
+        spread: x => x.SpreadFT ? Number(x.SpreadFT) / FEET : null,
+        // Derive DBH from circumference (since this is the canonical measurement)
+        dbh: x => {
+            const c = x.CircumferenceIN
+                ? Number(x.CircumferenceIN) * INCHES
+                : (x.CircumferenceFT ? Number(x.CircumferenceFT) * 30.48 : null);
+            return c ? Math.round(c / Math.PI * 10) / 10 : null;
+        },
+        status: 'Status',
+        statusDate: x => x.StatusDate ? new Date(x.StatusDate).toISOString() : null,
+        statusComments: 'StatusComments',
+        notes: 'AdditionalComments',
+        // Every record is a champion tree by construction
+        champion: () => true,
+        heritage: () => true,
+    },
+    primary: 'atlanta',
+},
+{
     // Added 2026-04-14: City of Ithaca tree inventory ("City Managed Trees")
     // hosted on ArcGIS Online by cmorrissey_IthacaNY. ~13,258 trees managed
     // on a 4-year inspection cycle, last edited 2024-09-26. Public access.

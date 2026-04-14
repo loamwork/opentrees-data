@@ -460,7 +460,39 @@
       "droppedNoGeo": 0,
       "durationSec": 4,
       "lastRunStatus": "ok"
+    },
+    "atlanta": {
+      "sourceId": "atlanta",
+      "short": "Atlanta",
+      "long": "Trees Atlanta — Plant Inventory",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services5.arcgis.com/HPK9d3vzjakSFUjJ/arcgis/rest/services/Trees_Atlanta_Historic_Plantings/FeatureServer/1/query?where=1%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://www.treesatlanta.org/resources/tree-inventory/",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2023-05-10T16:57:00.329Z",
+      "ingestedAt": "2026-04-14T04:25:20.492Z",
+      "recordCount": 85986,
+      "droppedNoGeo": 2,
+      "durationSec": 34,
+      "lastRunStatus": "ok"
+    },
+    "atlanta_champion": {
+      "sourceId": "atlanta_champion",
+      "short": "Atlanta Champions",
+      "long": "Atlanta Champion Trees Registry",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services6.arcgis.com/BZn8g8tzu5WfMokL/arcgis/rest/services/TreeChampionData_2019/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://www.treesatlanta.org/resources/tree-inventory/",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2026-02-23T14:36:17.518Z",
+      "ingestedAt": "2026-04-14T04:25:55.019Z",
+      "recordCount": 437,
+      "droppedNoGeo": 0,
+      "durationSec": 1,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T04:21:32.899Z"
+  "lastRefreshedAt": "2026-04-14T04:25:56.051Z"
 }
