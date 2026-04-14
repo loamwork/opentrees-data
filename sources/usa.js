@@ -1760,6 +1760,198 @@ module.exports = [
         notes: 'Notes',
     },
 },
+// ----- Los Angeles area (3 sources, ~251K trees) -----
+// The big gap: City of LA proper (~700K trees) is maintained by StreetsLA
+// via Davey Resource Group's TreeKeeper, but the public WFS at
+// geola.daveytreekeeper.com/geoserver/Treekeeper/ows strips DBH, height,
+// scientific name, and condition from every layer — only site_id +
+// tree_common leaks out. City of LA is documented as post-v1 council
+// email target #9 (CPRA request to StreetsLA Urban Forestry). Long Beach
+// (~140K) is #10, WCA-managed cities (Glendale / Burbank / Torrance /
+// Culver City / West Hollywood / etc.) are #11.
+//
+// What we do ship: three live ArcGIS feature services that clear the
+// quality bar.
+{
+    // LA County Department of Public Works Road Maintenance Division Tree
+    // Inventory — the biggest LA-area source. Covers parkway trees in
+    // unincorporated LA County (Altadena, East LA, Marina del Rey, Hacienda
+    // Heights, Rowland Heights, Ladera Heights, View Park / Windsor Hills,
+    // plus ~100 other unincorporated communities — NOT the City of LA
+    // proper). ~167K active trees with EXACT_DBH measured in inches.
+    //
+    // Schema is ArborPro-based. `ADDRESS` is the house number (stored as
+    // double), `PROPSTREET` is the street name. `EXACT_DBH`, `EXACT_HEIG`,
+    // `CROWN` are all in feet except DBH which is inches. `COMMON_editable`
+    // holds the UPPERCASE common name. `SCIENTIFIC_NAME` holds the Latin
+    // binomial.
+    //
+    // Filter the download URL to Status='Active' AND EXACT_DBH>0 so we only
+    // ship real living measured trees (~166,342 of 196,882 total).
+    id: 'la_county',
+    download: `https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Public_Works_Road_Maintenance_Division_Tree_Inventory_(Public_View)/FeatureServer/0/query?where=Status%3D%27Active%27+AND+EXACT_DBH%3E0&outFields=*&outSR=4326&f=geojson`,
+    info: 'https://trees-lacounty.hub.arcgis.com/',
+    sourceMetadataUrl: 'https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Public_Works_Road_Maintenance_Division_Tree_Inventory_(Public_View)/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'LA County',
+    long: 'Los Angeles County Department of Public Works (unincorporated)',
+    country: 'USA',
+    crosswalk: {
+        ref: 'OBJECTID',
+        scientific: 'SCIENTIFIC_NAME',
+        common: x => {
+            const v = x.COMMON_editable;
+            if (!v) return null;
+            return String(v).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        },
+        dbh: x => x.EXACT_DBH ? Number(x.EXACT_DBH) * INCHES : null,
+        height: x => x.EXACT_HEIG ? Number(x.EXACT_HEIG) / FEET : null,
+        crownSpread: x => x.CROWN ? Number(x.CROWN) / FEET : null,
+        status: 'Status',
+        address: x => {
+            const num = x.ADDRESS != null ? Math.trunc(Number(x.ADDRESS)).toString() : '';
+            const street = (x.PROPSTREET || '').trim();
+            const combined = [num, street].filter(Boolean).join(' ').trim();
+            return combined || null;
+        },
+        side: 'SIDE',
+        site: 'SITE',
+        community: 'COMMUNITY',
+        area: 'Area',
+        roadDistrict: 'RD',
+        maintenanceDistrict: 'MD',
+        supervisorialDistrict: 'SD',
+        currentProject: 'CURRPROJECT',
+        previousProject: 'PREVPROJECT',
+        cityWorksAssetId: 'CW_ASSETID',
+    },
+},
+{
+    // City of Pasadena, CA Street ROW Trees. ~57K total / ~51K with
+    // Trunk_Dia>0. Static since 2023-03-14 — Pasadena hasn't refreshed the
+    // inventory in 3 years. Still above the quality bar because every
+    // populated record has measured DBH and proper genus/species
+    // identification.
+    //
+    // Schema is Genus + Species as separate ALL-CAPS fields — reconstruct
+    // the binomial in title case. Trunk_Dia is in inches (DOUBLE).
+    // Status_Text filters living trees. Address is a numeric house number
+    // plus Street_Direction + Street_Name + Street_Type + Street_Suffix.
+    id: 'pasadena',
+    download: 'https://services2.arcgis.com/zNjnZafDYCAJAbN0/ArcGIS/rest/services/Street_ROW_Trees/FeatureServer/0/query?where=Trunk_Dia%3E0&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.cityofpasadena.net/public-works/',
+    sourceMetadataUrl: 'https://services2.arcgis.com/zNjnZafDYCAJAbN0/ArcGIS/rest/services/Street_ROW_Trees/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Pasadena',
+    long: 'City of Pasadena, California',
+    country: 'USA',
+    crosswalk: {
+        ref: 'Tree_Rec',
+        altTreeId: 'Alt_Tree_ID',
+        // Reconstruct binomial from ALL-CAPS Genus + Species. Fall back to
+        // genus-only if species is blank.
+        scientific: x => {
+            const g = (x.Genus || '').trim();
+            const s = (x.Species || '').trim();
+            const tcase = w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : '';
+            if (g && s) return `${tcase(g)} ${s.toLowerCase()}`;
+            if (g) return tcase(g);
+            return null;
+        },
+        genus: x => {
+            const g = (x.Genus || '').trim();
+            return g ? g[0].toUpperCase() + g.slice(1).toLowerCase() : null;
+        },
+        species: x => {
+            const s = (x.Species || '').trim();
+            return s ? s.toLowerCase() : null;
+        },
+        common: x => {
+            const v = x.Common_Name;
+            if (!v) return null;
+            return String(v).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        },
+        dbh: x => x.Trunk_Dia ? Number(x.Trunk_Dia) * INCHES : null,
+        status: 'Status_Text',
+        classification: 'Classification_Text',
+        address: x => {
+            const parts = [
+                x.Address != null ? Math.trunc(Number(x.Address)).toString() : '',
+                (x.Street_Direction || '').trim(),
+                (x.Street_Name || '').trim(),
+                (x.Street_Type || '').trim(),
+                (x.Street_Suffix || '').trim(),
+            ].filter(Boolean);
+            return parts.length ? parts.join(' ') : null;
+        },
+    },
+},
+{
+    // City of Santa Monica, CA — ~35K total / ~33K with actualdbh>0. Rich
+    // schema from an i-Tree-style inventory: actualdbh + actualheight in
+    // addition to binned `dbh`/`height` string fields, canopy spread,
+    // biological + structural + tree condition ratings, sidewalk damage,
+    // utility conflicts, parkway type, cycle number, UFORE (i-Tree urban
+    // forest effects) code, estimated replacement value.
+    id: 'santa_monica',
+    download: 'https://gis.santamonica.gov/server/rest/services/Trees/FeatureServer/0/query?where=actualdbh%3E0&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.santamonica.gov/trees',
+    sourceMetadataUrl: 'https://gis.santamonica.gov/server/rest/services/Trees/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Santa Monica',
+    long: 'City of Santa Monica, California',
+    country: 'USA',
+    crosswalk: {
+        ref: x => x.inventoryid ?? x.objectid,
+        // Santa Monica's botanicalname and commonname are stored with leading
+        // whitespace in about half the records (" Ceratonia siliqua",
+        // " Carob"). Trim them defensively.
+        scientific: x => (x.botanicalname || '').trim() || null,
+        common: x => {
+            const v = (x.commonname || '').trim();
+            if (!v) return null;
+            return v.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        },
+        dbh: x => x.actualdbh ? Number(x.actualdbh) * INCHES : null,
+        dbhBin: 'dbh',
+        height: x => x.actualheight ? Number(x.actualheight) / FEET : null,
+        heightBin: 'height',
+        crownSpread: x => x.actualcrown ? Number(x.actualcrown) / FEET : null,
+        canopySpread: x => x.canopy_spread__ft_ ? Number(x.canopy_spread__ft_) / FEET : null,
+        stems: 'stems',
+        biologicalCondition: 'biological_condition',
+        structuralCondition: 'structural_condition',
+        health: 'treecondition',
+        recommendedPriority: 'recommendedpriority',
+        sidewalkDamage: 'sidewalkdamage',
+        hasSidewalkDamage: 'hassidewalkdamage',
+        isUtility: 'isutility',
+        utility: 'utility',
+        parkway: 'parkway',
+        parkwayType: 'parkwaytype',
+        locationType: 'location_type',
+        locationDimension: 'location_dimension',
+        cycleNumber: 'cycle_number',
+        uforeCode: 'ufore_code',
+        estValue: 'estvalue',
+        assetNumberExternal: 'assetnumberexternal',
+        segment: 'segment',
+        district: 'district',
+        address: x => {
+            const num = x.address != null ? Math.trunc(Number(x.address)).toString() : '';
+            const street = (x.street || '').trim();
+            const combined = [num, street].filter(Boolean).join(' ').trim();
+            return combined || null;
+        },
+        onStreet: 'onstreet',
+        onAddress: 'onaddress',
+        sideType: 'sidetype',
+        fictitious: 'fictitious',
+        treeNumber: 'tree',
+        isValid: 'isvalid',
+        recommended: 'recommended',
+    },
+},
 {
     // Added 2026-04-14: City of Ithaca tree inventory ("City Managed Trees")
     // hosted on ArcGIS Online by cmorrissey_IthacaNY. ~13,258 trees managed

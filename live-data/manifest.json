@@ -716,7 +716,55 @@
       "droppedNoGeo": 0,
       "durationSec": 1,
       "lastRunStatus": "ok"
+    },
+    "la_county": {
+      "sourceId": "la_county",
+      "short": "LA County",
+      "long": "Los Angeles County Department of Public Works (unincorporated)",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Public_Works_Road_Maintenance_Division_Tree_Inventory_(Public_View)/FeatureServer/0/query?where=Status%3D%27Active%27+AND+EXACT_DBH%3E0&outFields=*&outSR=4326&f=geojson",
+      "info": "https://trees-lacounty.hub.arcgis.com/",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2026-04-14T17:36:27.854Z",
+      "ingestedAt": "2026-04-14T17:51:51.502Z",
+      "recordCount": 166342,
+      "droppedNoGeo": 0,
+      "durationSec": 74,
+      "lastRunStatus": "ok"
+    },
+    "pasadena": {
+      "sourceId": "pasadena",
+      "short": "Pasadena",
+      "long": "City of Pasadena, California",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services2.arcgis.com/zNjnZafDYCAJAbN0/ArcGIS/rest/services/Street_ROW_Trees/FeatureServer/0/query?where=Trunk_Dia%3E0&outFields=*&outSR=4326&f=geojson",
+      "info": "https://www.cityofpasadena.net/public-works/",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2023-03-14T18:24:36.900Z",
+      "ingestedAt": "2026-04-14T17:53:05.206Z",
+      "recordCount": 51629,
+      "droppedNoGeo": 0,
+      "durationSec": 36,
+      "lastRunStatus": "ok"
+    },
+    "santa_monica": {
+      "sourceId": "santa_monica",
+      "short": "Santa Monica",
+      "long": "City of Santa Monica, California",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://gis.santamonica.gov/server/rest/services/Trees/FeatureServer/0/query?where=actualdbh%3E0&outFields=*&outSR=4326&f=geojson",
+      "info": "https://www.santamonica.gov/trees",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": null,
+      "ingestedAt": "2026-04-14T17:54:51.126Z",
+      "recordCount": 33438,
+      "droppedNoGeo": 0,
+      "durationSec": 16,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T15:53:11.688Z"
+  "lastRefreshedAt": "2026-04-14T17:55:06.939Z"
 }
