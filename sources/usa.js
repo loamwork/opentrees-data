@@ -387,7 +387,7 @@ module.exports = [
     short: 'Austin',
     long: '',
     download: 'https://data.austintexas.gov/api/views/wrik-xasw/rows.csv?accessType=DOWNLOAD',
-    info:'https://data.austintexas.gov/Locations-and-Maps/Tree-Inventory/wrik-xasw',
+    info:'https://data.austintexas.gov/Environment/Tree-Inventory/wrik-xasw',
     sourceMetadataUrl: 'https://data.austintexas.gov/api/views/wrik-xasw.json',
     format: 'csv',
     crosswalk: {
@@ -401,6 +401,36 @@ module.exports = [
         common: 'SPECIES', // common name only — no scientific in this dataset
         dbh: x => x.DIAMETER ? Number(x.DIAMETER) * INCHES : null,
     }
+},
+{
+    // Added 2026-04-13: Austin's "Downtown Tree Inventory 2013" — a richer
+    // companion to wrik-xasw. ~7,295 trees in the central business district,
+    // surveyed 2013, focused on heritage species and trees ≥19" DBH. Has the
+    // full schema stevage's original Austin crosswalk was built for: SPECIES
+    // (scientific), COM_NAME (common), DBH, HEIGHT, CONDITION, LAND_TYPE,
+    // PARK_NAME. Geometry is a WKT POINT in `the_geom`; live-refresh.js
+    // parses it via the WKT fallback in extractCsvLatLon. The bulk CSV URL
+    // returns 404 on HEAD requests but works on GET (Socrata oddity).
+    id: 'austin_downtown',
+    country: 'USA',
+    short: 'Austin (downtown 2013)',
+    long: 'Austin Downtown Tree Inventory 2013',
+    download: 'https://data.austintexas.gov/api/views/7aq7-a66u/rows.csv?accessType=DOWNLOAD',
+    info: 'https://data.austintexas.gov/Environment/Downtown-Tree-Inventory-2013/7aq7-a66u',
+    sourceMetadataUrl: 'https://data.austintexas.gov/api/views/7aq7-a66u.json',
+    format: 'csv',
+    crosswalk: {
+        ref: 'TREE_ID',
+        scientific: 'SPECIES',
+        common: 'COM_NAME',
+        dbh: x => x.DBH ? Number(x.DBH) * INCHES : null,
+        height: x => x.HEIGHT ? Number(x.HEIGHT) / FEET : null,
+        health: 'CONDITION',
+        location: 'LAND_TYPE',
+        park: 'PARK_NAME',
+        address: 'ADDRESS',
+    },
+    primary: 'austin',
 },
 {
     id:'cornell',

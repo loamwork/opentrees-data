@@ -118,13 +118,13 @@
       "country": "USA",
       "format": "csv",
       "download": "https://data.austintexas.gov/api/views/wrik-xasw/rows.csv?accessType=DOWNLOAD",
-      "info": "https://data.austintexas.gov/Locations-and-Maps/Tree-Inventory/wrik-xasw",
+      "info": "https://data.austintexas.gov/Environment/Tree-Inventory/wrik-xasw",
       "license": "CC-BY-NC-4.0",
       "sourceLastUpdated": "2020-03-13T17:45:41.000Z",
-      "ingestedAt": "2026-04-14T00:44:14.371Z",
+      "ingestedAt": "2026-04-14T00:59:19.983Z",
       "recordCount": 62274,
       "droppedNoGeo": 0,
-      "durationSec": 7,
+      "durationSec": 10,
       "lastRunStatus": "ok"
     },
     "san_jose": {
@@ -284,7 +284,23 @@
       "droppedNoGeo": 0,
       "durationSec": 27,
       "lastRunStatus": "ok"
+    },
+    "austin_downtown": {
+      "sourceId": "austin_downtown",
+      "short": "Austin (downtown 2013)",
+      "long": "Austin Downtown Tree Inventory 2013",
+      "country": "USA",
+      "format": "csv",
+      "download": "https://data.austintexas.gov/api/views/7aq7-a66u/rows.csv?accessType=DOWNLOAD",
+      "info": "https://data.austintexas.gov/Environment/Downtown-Tree-Inventory-2013/7aq7-a66u",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2015-07-24T20:24:38.000Z",
+      "ingestedAt": "2026-04-14T00:58:55.616Z",
+      "recordCount": 7295,
+      "droppedNoGeo": 0,
+      "durationSec": 1,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T00:48:23.557Z"
+  "lastRefreshedAt": "2026-04-14T00:59:29.496Z"
 }

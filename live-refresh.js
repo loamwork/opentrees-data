@@ -136,6 +136,7 @@ const DEFAULT_SOURCE_IDS = [
     'boulder',
     'pittsburgh',
     'austin',
+    'austin_downtown',
     'mountain_view',
     'san_jose',
     'london',
@@ -331,16 +332,35 @@ function extractCsvLatLon(row) {
         ['y', 'x'],
         ['y_lat', 'x_long'],         // Denver's column names
     ];
+    // WKT first — checked before generic Y/X columns because in many Socrata
+    // datasets Y/X are state plane projection coordinates (feet/meters in a
+    // local CRS, not lat/lon). The WKT in `the_geom` is always WGS84.
+    const wktSources = ['the_geom', 'geom', 'GEOMETRY', 'geometry'];
+    for (const key of wktSources) {
+        const v = row[key];
+        if (typeof v !== 'string') continue;
+        const m = v.match(/^POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)/i);
+        if (m) {
+            const lon = Number(m[1]);
+            const lat = Number(m[2]);
+            if (isValidLatLon(lat, lon)) return { lat, lon };
+        }
+    }
     for (const [latKey, lonKey] of candidates) {
         if (row[latKey] != null && row[lonKey] != null) {
             const lat = Number(row[latKey]);
             const lon = Number(row[lonKey]);
-            if (Number.isFinite(lat) && Number.isFinite(lon) && lat !== 0 && lon !== 0) {
-                return { lat, lon };
-            }
+            if (isValidLatLon(lat, lon)) return { lat, lon };
         }
     }
     return { lat: null, lon: null };
+}
+
+function isValidLatLon(lat, lon) {
+    return Number.isFinite(lat) && Number.isFinite(lon) &&
+        lat !== 0 && lon !== 0 &&
+        lat >= -90 && lat <= 90 &&
+        lon >= -180 && lon <= 180;
 }
 
 /**
