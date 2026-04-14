@@ -100,9 +100,61 @@ module.exports = [
     primary: 'pdx-street',
 },
 {
+    // Added 2026-04-13: Portland's Heritage Trees registry — 463 trees
+    // formally designated by the City Forester under Portland's Heritage Tree
+    // ordinance. These are city-recognized hero trees, perfect for Pining's
+    // "designated significant" feed alongside the city-wide street/park
+    // inventories. Each entry has full measurements (height, spread, diameter,
+    // circumference), the year of heritage designation, ownership, address,
+    // and a Delist_Date/Delist_Reason if a tree has been removed from the
+    // registry. We filter to currently-listed trees only.
+    id: 'pdx_heritage',
+    download: 'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Environment/MapServer/26/query?where=Delist_Date+IS+NULL&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.portland.gov/trees/get-involved/heritage-trees',
+    sourceMetadataUrl: 'https://www.portlandmaps.com/od/rest/services/COP_OpenData_Environment/MapServer/26?f=json',
+    format: 'arcgis-rest',
+    short: 'Portland Heritage Trees',
+    long: 'Portland, Oregon — Heritage Trees Registry',
+    country: 'USA',
+    crosswalk: {
+        ref: 'TREEID',
+        scientific: 'SCIENTIFIC',
+        common: 'COMMON',
+        // Heritage trees use real measurements: HEIGHT and SPREAD in feet,
+        // DIAMETER in inches, CIRCUMF (circumference) as a separate double.
+        height: x => x.HEIGHT ? Number(x.HEIGHT) / FEET : null,
+        spread: x => x.SPREAD ? Number(x.SPREAD) / FEET : null,
+        dbh: x => x.DIAMETER ? Number(x.DIAMETER) * INCHES : null,
+        // CIRCUMF is in FEET (not inches like DIAMETER). Verified against several
+        // samples: a tree with 25" diameter has CIRCUMF=7.6 (= ~6.5 ft expected).
+        // Convert feet → cm = × 30.48.
+        circumference: x => x.CIRCUMF ? Math.round(Number(x.CIRCUMF) * 30.48 * 10) / 10 : null,
+        notes: 'NOTES',
+        owner: 'Ownership',
+        address: 'SITE_ADDRESS',
+        neighborhood: 'Neighborhood',
+        stateId: 'STATE_ID',
+        yearDesignated: 'YEAR_Designated',
+        designatedDate: x => x.DATE_DESIG ? new Date(x.DATE_DESIG).toISOString() : null,
+        // These fields drive Pining's hero tag — every record is a heritage
+        // tree by construction (we filtered Delist_Date IS NULL above).
+        heritage: () => true,
+        // Date stamps for measurements (from the most recent verification)
+        dateHeight: x => x.Date_Height ? new Date(x.Date_Height).toISOString() : null,
+        dateSpread: x => x.Date_Spread ? new Date(x.Date_Spread).toISOString() : null,
+        dateCircumference: x => x.Date_Circumference ? new Date(x.Date_Circumference).toISOString() : null,
+    },
+    primary: 'pdx-street',
+},
+{
     // Verified 2026-04-13: stevage's URL still works. NYC TreesCount! 2015 census
-    // is still the canonical bulk dataset (the 2025 census is in fieldwork but not
-    // yet published). rowsUpdatedAt = 2017-10-04 (post-census QA fixes).
+    // is still the canonical historical bulk dataset (the 2025 census is in
+    // fieldwork but not yet bulk-published). rowsUpdatedAt = 2017-10-04 (post-
+    // census QA fixes). The 45-column schema is much richer than what stevage's
+    // original 5-field crosswalk extracted; we now pull location context, status,
+    // health observations, stewardship info, and per-record creation timestamps.
+    // For LIVE NYC tree data, see the `nyc_forestry` source below — that's the
+    // operational ForMS 2.0 inventory and is updated continuously.
     id: 'nyc',
     download: 'https://data.cityofnewyork.us/api/views/uvpi-gqnh/rows.csv?accessType=DOWNLOAD',
     info: 'https://data.cityofnewyork.us/Environment/2015-Street-Tree-Census-Tree-Data/uvpi-gqnh',
@@ -113,14 +165,87 @@ module.exports = [
     long: 'New York City',
     country: 'USA',
     crosswalk: {
+        // Note: Socrata's bulk CSV download is INCONSISTENT about column names
+        // — some columns use the underscore_form fieldName (tree_id, spc_latin),
+        // some use the display name (`borough` not `boroname`, `postcode` not
+        // `zipcode`). A few have spaces (`council district`, `census tract`,
+        // `community board`). Always verify against the actual CSV header.
         ref: 'tree_id',
-        dbh: x => x.tree_dbh * 2.54, // source is in inches
+        dbh: x => x.tree_dbh ? Number(x.tree_dbh) * INCHES : null, // source is in inches
+        stumpDiameter: x => x.stump_diam ? Number(x.stump_diam) * INCHES : null,
         scientific: 'spc_latin',
         common: 'spc_common',
         health: 'health',
-        // sooo many other fields.
-
+        status: 'status', // Alive / Dead / Stump
+        steward: 'steward',
+        guards: 'guards',
+        sidewalk: 'sidewalk',
+        problems: 'problems',
+        address: 'address',
+        postcode: 'postcode', // bulk-CSV uses the display name 'postcode' (not 'zipcode')
+        zipCity: 'zip_city',
+        borough: 'borough', // bulk-CSV uses display name 'borough' (not 'boroname')
+        boroughCode: 'borocode',
+        nta: 'nta',
+        ntaName: 'nta_name',
+        councilDistrict: x => x['council district'], // CSV column has space
+        censusTract: x => x['census tract'],         // CSV column has space
+        communityBoard: x => x['community board'],   // CSV column has space
+        cncldist: 'cncldist', // integer council district number (different format)
+        created: x => x.created_at ? new Date(x.created_at).toISOString() : null,
+        curbLoc: 'curb_loc',
+        userType: 'user_type',
+        // Health observation flags
+        rootStone: 'root_stone',
+        rootGrate: 'root_grate',
+        trunkWire: 'trunk_wire',
+        trunkLight: 'trnk_light',
+        branchLight: 'brch_light',
+        branchShoe: 'brch_shoe',
     },
+},
+{
+    // Added 2026-04-13: NYC Parks & Recreation Forestry Tree Points — the LIVE
+    // operational tree management database (ForMS 2.0), updated continuously
+    // (last edit 2026-04-03 as of this addition). 1,107,952 records — about
+    // 60% more than the 2015 census, AND much fresher. Includes both Active
+    // and Retired (removed) trees, with per-record condition, risk rating,
+    // planting date, and update timestamp. Pining can filter by tpstructure
+    // to show only living trees.
+    //
+    // Schema notes:
+    //   genusspecies field is "Genus species - Common name" (split in crosswalk)
+    //   geometry / location both contain WKT POINT — extractCsvLatLon picks up
+    //   the WKT first so we get true WGS84 coords.
+    id: 'nyc_forestry',
+    // 1.1M rows of bulk CSV exceeds Node's max string length (~512 MB) so we
+    // use the paginated SODA JSON endpoint instead. SODA returns lowercase
+    // field names (the JSON API form), not the bulk-CSV Socrata display names.
+    download: 'https://data.cityofnewyork.us/resource/hn5i-inap.json',
+    info: 'https://data.cityofnewyork.us/Environment/Forestry-Tree-Points/hn5i-inap',
+    sourceMetadataUrl: 'https://data.cityofnewyork.us/api/views/hn5i-inap.json',
+    format: 'socrata-soda',
+    short: 'New York (live forestry)',
+    long: 'NYC Parks ForMS 2.0 — Forestry Tree Points',
+    country: 'USA',
+    crosswalk: {
+        ref: 'objectid',
+        // genusspecies = "Acer nigrum - black maple" (sometimes genus only:
+        // "Acer - maple"). Split on " - "; the right-hand side is the common
+        // name, possibly multi-token.
+        scientific: x => x.genusspecies ? String(x.genusspecies).split(' - ')[0] : null,
+        common:     x => x.genusspecies ? String(x.genusspecies).split(' - ').slice(1).join(' - ') || null : null,
+        dbh: x => x.dbh ? Number(x.dbh) * INCHES : null, // source is in inches
+        stumpDiameter: x => x.stumpdiameter ? Number(x.stumpdiameter) * INCHES : null,
+        health: 'tpcondition', // Excellent/Good/Fair/Poor/Dead
+        structure: 'tpstructure', // Active / Retired / Full / etc.
+        riskRating: 'riskrating',
+        riskRatingDate: x => x.riskratingdate ? new Date(x.riskratingdate).toISOString() : null,
+        planted: x => x.planteddate ? new Date(x.planteddate).toISOString() : null,
+        created: x => x.createddate ? new Date(x.createddate).toISOString() : null,
+        updated: x => x.updateddate ? new Date(x.updateddate).toISOString() : null,
+    },
+    primary: 'nyc',
 },
 // TODO there is a lat lon buiried in "Property Address" field
 {
@@ -212,14 +337,26 @@ module.exports = [
     sourceMetadataUrl: 'https://data.sfgov.org/api/views/tkzw-k3nq.json',
     crosswalk: {
         id: 'TreeID',
-        scientific: x => String(x.qSpecies).split(' :: ')[0],
-        common:  x => String(x.qSpecies).split(' :: ')[1],
+        // qSpecies = "Genus species :: Common name" (e.g. "Fraxinus uhdei :: Shamel Ash: Evergreen Ash")
+        scientific: x => x.qSpecies ? String(x.qSpecies).split(' :: ')[0] : null,
+        common:     x => x.qSpecies ? String(x.qSpecies).split(' :: ')[1] || null : null,
         description: 'qSiteInfo',
-        dbh: x => Number(x.DBH) * 2.54, // SF DBH is in inches
-        planted: 'PlantDate',
-
-
-        // also qLegalStatus (private/DPW), qCaretaker, PlantType
+        dbh: x => x.DBH ? Number(x.DBH) * INCHES : null, // SF DBH is in inches
+        planted: x => x.PlantDate ? new Date(x.PlantDate).toISOString() : null,
+        legalStatus: 'qLegalStatus', // DPW Maintained / Private / Section 143 / etc.
+        caretaker: 'qCaretaker', // Private / DPW / etc.
+        careAssistant: 'qCareAssistant',
+        plantType: 'PlantType',
+        plotSize: 'PlotSize',
+        permitNotes: 'PermitNotes',
+        address: 'qAddress',
+        siteOrder: 'SiteOrder',
+        // Computed-region columns (from Socrata spatial joins, exposed in CSV
+        // with human-readable names that include spaces).
+        analysisNeighborhood: x => x['Analysis Neighborhoods'],
+        supervisorDistrict: x => x['Supervisor Districts'],
+        zipCode: x => x['Zip Codes'],
+        firePreventionDistrict: x => x['Fire Prevention Districts'],
     },
     centre: [-122.435, 37.77],
 
@@ -498,20 +635,39 @@ module.exports = [
     paginate: true,
     crosswalk: {
         ref: 'UNITID',
-        health: 'CONDITION',
-        owner: 'OWNERSHIP',
-        // ArcGIS REST returns dates as Unix epoch milliseconds. Convert to ISO
-        // for consistency with sourceLastUpdated.
-        updated: x => x.MODDATE ? new Date(x.MODDATE).toISOString() : null,           // was 'LAST_VERIF' in stevage's truncated names
-        planted: x => x.PLANTED_DATE ? new Date(x.PLANTED_DATE).toISOString() : null, // was 'PLANTED_DA'
-        scientific: 'SCIENTIFIC_NAME', // was 'SCIENTIFIC'
+        scientific: 'SCIENTIFIC_NAME', // was 'SCIENTIFIC' (10-char shapefile truncation)
         common: 'COMMON_NAME',         // was 'COMMON_NAM'
-        height: x => x.TREEHEIGHT ? x.TREEHEIGHT / FEET : null,  // source is in feet
-        dbh: x => x.DIAM ? x.DIAM * INCHES : null,               // source is in inches
-        // Stevage's original "condition" mapping referenced CONDITIO_3 (a numeric
-        // code from the truncated shapefile). The FeatureServer schema has both
-        // CONDITION (text) and CONDITION_RATING (text). 'CONDITION' is mapped to
-        // health above; this entry is left intentionally unmapped.
+        genus: 'GENUS',
+        // Heritage / exceptional designations — Y/N flags. 273 heritage trees
+        // and 33 exceptional trees in Seattle as of 2026-04-13. Pining can
+        // tag these as hero candidates.
+        heritage: x => x.HERITAGE === 'Y',
+        exceptional: x => x.EXCEPTIONAL === 'Y',
+        // Measurements (source is imperial)
+        dbh: x => x.DIAM ? Number(x.DIAM) * INCHES : null,
+        height: x => x.TREEHEIGHT ? Number(x.TREEHEIGHT) / FEET : null,
+        growSpace: 'GROWSPACE',  // size of the planting box in feet
+        // Condition fields. CONDITION is text (Excellent/Good/Fair/Poor),
+        // CONDITION_RATING is a 1-5 numeric. Both are exposed for richness.
+        health: 'CONDITION',
+        conditionRating: 'CONDITION_RATING',
+        currentStatus: 'CURRENT_STATUS', // INSVC = in service, etc.
+        // Site context
+        owner: 'OWNERSHIP', // PRIV / PUB / SDOT / etc.
+        spaceType: 'SPACETYPE', // SOIL / GRAVEL / etc.
+        siteType: 'SITETYPE',   // PIT / etc.
+        wires: x => x.WIRES === 'Y',
+        cabled: x => x.CABLED === 'Y',
+        clearanceProblem: x => x.CLEARANCE_PROBLEM === 'Y',
+        district: 'PRIMARYDISTRICTCD',
+        // Address / description
+        address: 'UNITDESC',
+        notes: 'COMMENTS',
+        // Date fields (ArcGIS REST returns Unix epoch ms)
+        planted: x => x.PLANTED_DATE ? new Date(x.PLANTED_DATE).toISOString() : null,
+        updated: x => x.MODDATE ? new Date(x.MODDATE).toISOString() : null,
+        verified: x => x.LAST_VERIFY_DATE ? new Date(x.LAST_VERIFY_DATE).toISOString() : null,
+        conditionAssessmentDate: x => x.CONDITION_ASSESSMENT_DATE ? new Date(x.CONDITION_ASSESSMENT_DATE).toISOString() : null,
         // Schema doc: https://www.seattle.gov/Documents/Departments/SDOT/GIS/Trees_OD.pdf
     }
 },

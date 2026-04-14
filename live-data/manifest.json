@@ -11,10 +11,10 @@
       "info": "https://data.cityofnewyork.us/Environment/2015-Street-Tree-Census-Tree-Data/uvpi-gqnh",
       "license": "CC-BY-NC-4.0",
       "sourceLastUpdated": "2017-10-04T13:41:26.000Z",
-      "ingestedAt": "2026-04-13T23:33:35.768Z",
+      "ingestedAt": "2026-04-14T01:58:35.762Z",
       "recordCount": 683788,
       "droppedNoGeo": 0,
-      "durationSec": 250,
+      "durationSec": 147,
       "lastRunStatus": "ok"
     },
     "san_francisco": {
@@ -27,10 +27,10 @@
       "info": "https://data.sfgov.org/City-Infrastructure/Street-Tree-List/tkzw-k3nq",
       "license": "CC-BY-NC-4.0",
       "sourceLastUpdated": "2026-04-06T11:27:14.000Z",
-      "ingestedAt": "2026-04-13T23:43:27.737Z",
+      "ingestedAt": "2026-04-14T01:43:38.332Z",
       "recordCount": 195358,
       "droppedNoGeo": 3072,
-      "durationSec": 14,
+      "durationSec": 44,
       "lastRunStatus": "ok"
     },
     "seattle": {
@@ -43,10 +43,10 @@
       "info": "https://data-seattlecitygis.opendata.arcgis.com/datasets/SeattleCityGIS::sdot-trees-active",
       "license": "CC-BY-NC-4.0",
       "sourceLastUpdated": "2026-04-13T12:06:52.021Z",
-      "ingestedAt": "2026-04-13T23:43:41.017Z",
+      "ingestedAt": "2026-04-14T01:51:57.060Z",
       "recordCount": 209057,
       "droppedNoGeo": 0,
-      "durationSec": 75,
+      "durationSec": 95,
       "lastRunStatus": "ok"
     },
     "madison": {
@@ -300,7 +300,39 @@
       "droppedNoGeo": 0,
       "durationSec": 1,
       "lastRunStatus": "ok"
+    },
+    "nyc_forestry": {
+      "sourceId": "nyc_forestry",
+      "short": "New York (live forestry)",
+      "long": "NYC Parks ForMS 2.0 — Forestry Tree Points",
+      "country": "USA",
+      "format": "socrata-soda",
+      "download": "https://data.cityofnewyork.us/resource/hn5i-inap.json",
+      "info": "https://data.cityofnewyork.us/Environment/Forestry-Tree-Points/hn5i-inap",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2026-04-03T13:32:34.000Z",
+      "ingestedAt": "2026-04-14T01:54:17.995Z",
+      "recordCount": 1107952,
+      "droppedNoGeo": 0,
+      "durationSec": 217,
+      "lastRunStatus": "ok"
+    },
+    "pdx_heritage": {
+      "sourceId": "pdx_heritage",
+      "short": "Portland Heritage Trees",
+      "long": "Portland, Oregon — Heritage Trees Registry",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://www.portlandmaps.com/od/rest/services/COP_OpenData_Environment/MapServer/26/query?where=Delist_Date+IS+NULL&outFields=*&outSR=4326&f=geojson",
+      "info": "https://www.portland.gov/trees/get-involved/heritage-trees",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": null,
+      "ingestedAt": "2026-04-14T02:06:17.437Z",
+      "recordCount": 363,
+      "droppedNoGeo": 0,
+      "durationSec": 2,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T00:59:29.496Z"
+  "lastRefreshedAt": "2026-04-14T02:06:18.837Z"
 }

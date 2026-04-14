@@ -125,12 +125,14 @@ function csvParse(text) {
 const DEFAULT_SOURCE_IDS = [
     // First batch (committed earlier)
     'nyc',
+    'nyc_forestry',
     'san_francisco',
     'seattle',
     // Second batch
     'madison',
     'pdx-street',
     'pdx-park',
+    'pdx_heritage',
     'washington-dc',
     'denver',
     'boulder',
@@ -243,6 +245,39 @@ async function fetchGeoJsonOnce(url) {
 }
 
 /**
+ * Fetch all rows from a paginated Socrata SODA JSON resource endpoint. Used
+ * for very large Socrata datasets where the bulk CSV download exceeds Node's
+ * max string length (~512 MB). SODA returns JSON objects with lowercase
+ * fieldName keys (NOT the Socrata display names from the metadata).
+ *
+ * Stop conditions: empty page OR page smaller than the configured limit.
+ */
+const SODA_PAGE_SIZE = 50000;
+const SODA_PAGE_DELAY_MS = 100;
+async function fetchSocrataSodaAll(baseUrl) {
+    const all = [];
+    let offset = 0;
+    while (true) {
+        const sep = baseUrl.includes('?') ? '&' : '?';
+        const url = `${baseUrl}${sep}$limit=${SODA_PAGE_SIZE}&$offset=${offset}`;
+        const data = await httpGetJson(url, { timeoutMs: 180_000 });
+        if (!Array.isArray(data)) {
+            throw new Error(`SODA expected array, got: ${JSON.stringify(data).slice(0, 200)}`);
+        }
+        if (data.length === 0) break;
+        all.push(...data);
+        process.stdout.write(`  fetched ${all.length}\r`);
+        if (data.length < SODA_PAGE_SIZE) break;
+        offset += data.length;
+        if (SODA_PAGE_DELAY_MS) {
+            await new Promise(r => setTimeout(r, SODA_PAGE_DELAY_MS));
+        }
+    }
+    process.stdout.write('\n');
+    return all;
+}
+
+/**
  * Fetch all features from a paginated ArcGIS REST FeatureServer query endpoint.
  * Iterates with resultOffset until the server returns fewer features than
  * pageSize. Returns array of GeoJSON Feature objects (because the source URL
@@ -334,8 +369,9 @@ function extractCsvLatLon(row) {
     ];
     // WKT first — checked before generic Y/X columns because in many Socrata
     // datasets Y/X are state plane projection coordinates (feet/meters in a
-    // local CRS, not lat/lon). The WKT in `the_geom` is always WGS84.
-    const wktSources = ['the_geom', 'geom', 'GEOMETRY', 'geometry'];
+    // local CRS, not lat/lon). The WKT in `the_geom` / `Geometry` / `Location`
+    // is always WGS84.
+    const wktSources = ['the_geom', 'geom', 'GEOMETRY', 'geometry', 'Geometry', 'Location', 'location'];
     for (const key of wktSources) {
         const v = row[key];
         if (typeof v !== 'string') continue;
@@ -397,6 +433,26 @@ function makeCanonicalRecord(rawRow, source, latLon, sourceLastUpdated, ingested
     };
 }
 
+/**
+ * Stream-write an array of records as a JSON array, one record per write call.
+ * Avoids building one giant string in memory (which V8 caps at ~512 MB).
+ * Output is standard JSON: `[record1,record2,...,recordN]`.
+ */
+function writeJsonArrayStreamed(outPath, records) {
+    return new Promise((resolve, reject) => {
+        const ws = fs.createWriteStream(outPath, { encoding: 'utf8' });
+        ws.on('error', reject);
+        ws.on('finish', resolve);
+        ws.write('[');
+        for (let i = 0; i < records.length; i++) {
+            if (i > 0) ws.write(',');
+            ws.write(JSON.stringify(records[i]));
+        }
+        ws.write(']');
+        ws.end();
+    });
+}
+
 // ---------- Per-source runner ----------
 
 async function refreshOneSource(source) {
@@ -443,6 +499,21 @@ async function refreshOneSource(source) {
             const rec = makeCanonicalRecord(props, source, latLon, sourceLastUpdated, ingestedAt);
             if (rec) records.push(rec);
         }
+    } else if (source.format === 'socrata-soda') {
+        const rows = await fetchSocrataSodaAll(source.download);
+        console.log(`  fetched ${rows.length} SODA rows`);
+        for (const row of rows) {
+            // SODA may return a Socrata `location` field as an object; convert
+            // to a WKT-friendly string so extractCsvLatLon picks it up via the
+            // generic 'location' WKT candidate.
+            if (row.location && typeof row.location === 'object' && Array.isArray(row.location.coordinates)) {
+                const [lon, lat] = row.location.coordinates;
+                row.location = `POINT (${lon} ${lat})`;
+            }
+            const latLon = extractCsvLatLon(row);
+            const rec = makeCanonicalRecord(row, source, latLon, sourceLastUpdated, ingestedAt);
+            if (rec) records.push(rec);
+        }
     } else {
         throw new Error(`Unsupported format '${source.format}' for source ${source.id}`);
     }
@@ -451,10 +522,14 @@ async function refreshOneSource(source) {
     const valid = records.filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lon) && r.lat !== 0 && r.lon !== 0);
     const droppedNoGeo = records.length - valid.length;
 
-    // Write output
+    // Write output as chunked JSON array — one record at a time to avoid
+    // building a single giant string buffer. V8 caps strings at ~512 MB which
+    // breaks JSON.stringify(huge_array) on datasets like NYC Forestry's 1.1M
+    // records. The on-disk file is still standard JSON (parses with any
+    // JSON.parse).
     if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
     const outPath = path.join(OUT_DIR, `${source.id}.json`);
-    fs.writeFileSync(outPath, JSON.stringify(valid));
+    await writeJsonArrayStreamed(outPath, valid);
     const sizeKb = (fs.statSync(outPath).size / 1024).toFixed(1);
     console.log(`  wrote ${valid.length} records to ${outPath} (${sizeKb} KB)`);
     if (droppedNoGeo > 0) console.log(`  dropped ${droppedNoGeo} records with missing/invalid coords`);
