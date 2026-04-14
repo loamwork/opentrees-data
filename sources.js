@@ -317,9 +317,11 @@ const sources = [
         centre: [-100.3071, 25.6801],
     },
 ];
-fs.readdirSync(`sources`).forEach(sourceName =>
-    sources.push(...require(`./sources/${sourceName}`))
-);
+fs.readdirSync(`sources`)
+    .filter(name => name.endsWith('.js'))
+    .forEach(sourceName =>
+        sources.push(...require(`./sources/${sourceName}`))
+    );
 
 module.exports = sources;
 // module.exports = sources.filter(x => x.id === 'cupertino')

@@ -572,7 +572,71 @@
       "droppedNoGeo": 0,
       "durationSec": 3,
       "lastRunStatus": "ok"
+    },
+    "san_diego": {
+      "sourceId": "san_diego",
+      "short": "San Diego",
+      "long": "City of San Diego, California",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services2.arcgis.com/yrktbS5Xw87hJQvs/arcgis/rest/services/iTreeReport_SanDiegoAP_Merge11/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://san-diego-trees-for-communities-arboraccess.hub.arcgis.com",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2026-04-03T14:38:48.562Z",
+      "ingestedAt": "2026-04-14T13:15:23.528Z",
+      "recordCount": 258980,
+      "droppedNoGeo": 0,
+      "durationSec": 116,
+      "lastRunStatus": "ok"
+    },
+    "palo_alto": {
+      "sourceId": "palo_alto",
+      "short": "Palo Alto",
+      "long": "City of Palo Alto, California",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services6.arcgis.com/evmyRZRrsopdeog7/ArcGIS/rest/services/TreeData/FeatureServer/0/query?where=ACTIVE%3D1+AND+SPECIES+NOT+LIKE+%27Vacant%25%27&outFields=*&outSR=4326&f=geojson",
+      "info": "https://opengis.cityofpaloalto.org/",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2026-04-13T10:25:36.644Z",
+      "ingestedAt": "2026-04-14T13:03:12.532Z",
+      "recordCount": 35856,
+      "droppedNoGeo": 0,
+      "durationSec": 28,
+      "lastRunStatus": "ok"
+    },
+    "santa_barbara": {
+      "sourceId": "santa_barbara",
+      "short": "Santa Barbara",
+      "long": "City of Santa Barbara, California",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://gisportal.santabarbaraca.gov/server1/rest/services/CitySantaBarbara/MapServer/246/query?where=1%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://maps.santabarbaraca.gov/",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": null,
+      "ingestedAt": "2026-04-14T13:03:40.989Z",
+      "recordCount": 39101,
+      "droppedNoGeo": 0,
+      "durationSec": 12,
+      "lastRunStatus": "ok"
+    },
+    "irvine": {
+      "sourceId": "irvine",
+      "short": "Irvine",
+      "long": "City of Irvine, California",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://gis.cityofirvine.org/arcgis/rest/services/Lucity/Lucity_Editor_Trees/FeatureServer/0/query?where=TRG_STAT_CD%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://gis.cityofirvine.org/arcgis/rest/services/Lucity/Lucity_Editor_Trees/FeatureServer",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": null,
+      "ingestedAt": "2026-04-14T13:03:53.554Z",
+      "recordCount": 63395,
+      "droppedNoGeo": 0,
+      "durationSec": 58,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T04:56:40.228Z"
+  "lastRefreshedAt": "2026-04-14T13:17:19.182Z"
 }

@@ -40,6 +40,45 @@ function parseBellevueSpecies(x) {
     return result;
 }
 
+/**
+ * Palo Alto's SPECIES field is a codedValueDomain where `code` is the
+ * scientific binomial and `name` is the common name. The GeoJSON export
+ * returns raw codes (the scientific name) so we need the lookup table for
+ * common names. 574-entry snapshot cached under sources/cache/palo_alto_species.json
+ * — regenerate from the FeatureServer `?f=json` metadata if new species are
+ * added. Returns null for unknown codes (doesn't block the pipeline).
+ */
+const PALO_ALTO_SPECIES_MAP = require('./cache/palo_alto_species.json');
+function paloAltoCommon(code) {
+    if (!code) return null;
+    // Try exact; then a case-normalized variant (some rows use ALL CAPS).
+    return PALO_ALTO_SPECIES_MAP[code]
+        || PALO_ALTO_SPECIES_MAP[String(code).trim()]
+        || null;
+}
+
+/**
+ * Santa Barbara's DBH and HEIGHT fields are string bins like "0-6", "7-12",
+ * "13-18", "19-24", "25-30", "31-36", "37+" for DBH (inches) and
+ * "01-15", "15-30", "30-45", "45-60", "60+" for height (feet). Return the
+ * midpoint as a number in the original unit, or null if unparseable. The
+ * bin's upper bound is used for open-ended "+" bins.
+ */
+function parseRangeBin(val) {
+    if (val == null) return null;
+    const s = String(val).trim();
+    if (!s || s === '---') return null;
+    // "37+" / "60+"
+    const open = s.match(/^(\d+)\s*\+$/);
+    if (open) return Number(open[1]);
+    // "0-6" / "01-15"
+    const closed = s.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (closed) return (Number(closed[1]) + Number(closed[2])) / 2;
+    // Plain number
+    const plain = Number(s);
+    return Number.isFinite(plain) ? plain : null;
+}
+
 module.exports = [
 {
     // Updated 2026-04-13: stevage's old opendata.arcgis.com zip URL is dead.
@@ -706,6 +745,286 @@ module.exports = [
         created: x => x.DateCreate ? new Date(x.DateCreate).toISOString() : null,
         collectedAt: x => x.TimeCollec ? new Date(x.TimeCollec).toISOString() : null,
         collector: 'User_',
+    },
+},
+{
+    // Added 2026-04-14: City of San Diego, CA street tree inventory. The city
+    // itself does NOT publish an open point inventory — data.sandiego.gov only
+    // has canopy polygons. The real inventory is maintained by West Coast
+    // Arborists, the city's contracted urban forester, and exposed via their
+    // "ArborAccess" ArcGIS Online org (`services2.arcgis.com/yrktbS5Xw87hJQvs`).
+    // 258,980 trees as of 2026-04-03 — the largest US source in the dataset.
+    // Rich iTree Eco outputs per tree (carbon, runoff, pollution removal,
+    // annual $ benefits) because WCA pushes data through the i-Tree Streets
+    // pipeline.
+    //
+    // License: no explicit grant on the item. WCA publishes this publicly on
+    // behalf of the City. Attribution: "City of San Diego / West Coast
+    // Arborists, Inc."
+    id: 'san_diego',
+    download: 'https://services2.arcgis.com/yrktbS5Xw87hJQvs/arcgis/rest/services/iTreeReport_SanDiegoAP_Merge11/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://san-diego-trees-for-communities-arboraccess.hub.arcgis.com',
+    sourceMetadataUrl: 'https://services2.arcgis.com/yrktbS5Xw87hJQvs/arcgis/rest/services/iTreeReport_SanDiegoAP_Merge11/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'San Diego',
+    long: 'City of San Diego, California',
+    country: 'USA',
+    crosswalk: {
+        // This layer was built from a join/union of WCA's inventory tables —
+        // `OBJECTID` is the original source-table ID (NULL for ~57% of rows
+        // that don't match) while `OBJECTID_1` is the feature service's own
+        // primary key, which is always populated. InventoryID is also null for
+        // 98% of rows. Use OBJECTID_1 as the canonical ref.
+        ref: x => x.OBJECTID_1 ?? x.InventoryID ?? x.OBJECTID ?? null,
+        inventoryId: 'InventoryID',
+        scientific: 'Species_Name',
+        // WCA publishes common names in ALL CAPS. Title-case them lazily.
+        common: x => {
+            const v = x.CommonName;
+            if (!v) return null;
+            return String(v).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        },
+        botanical: 'BotanicalName', // alternate scientific, sparsely populated
+        dbh: x => x.ActualDBH ? Number(x.ActualDBH) * INCHES : null,
+        dbhBin: 'DBH__in_', // binned string version (e.g. "0-6"), mostly null
+        heightBin: 'HEIGHT', // string bin like "1'-10'", "11'-20'"
+        health: 'TreeCondition',
+        address: x => {
+            const num = x.ADDRESS || '';
+            const street = x.STREET || '';
+            const combined = [num, street].filter(Boolean).join(' ').trim();
+            return combined || null;
+        },
+        onStreet: 'OnStreet',
+        onAddress: 'OnAddress',
+        side: 'Side',
+        sideCode: 'SideCode',
+        speciesId: 'SpeciesID',
+        recommendation: 'Recommendation',
+        jobNumberId: 'JobNumberID',
+        addedDate: x => x.AddedDate ? new Date(x.AddedDate).toISOString() : null,
+        lastWorked: x => x.InventoryHistoryWorkDate ? new Date(x.InventoryHistoryWorkDate).toISOString() : null,
+        // i-Tree Eco annual benefits
+        carbonStorageLb: 'Carbon_Storage__lb_',
+        carbonSequestrationLb: 'Gross_Carbon_Sequestration__lb_',
+        avoidedRunoffGal: 'Avoided_Runoff__gal_yr_',
+        pollutionRemovalOz: 'Pollution_Removal__oz_yr_',
+        oxygenProductionLb: 'Oxygen_Production__lb_yr_',
+        totalAnnualBenefitsUsd: 'Total_Annual_Benefits____yr_',
+        replacementValueUsd: 'Replacement_Value____',
+    },
+},
+{
+    // Added 2026-04-14: City of Palo Alto, CA street & park tree inventory.
+    // City-owned ArcGIS feature service (39,629 records, updated 2026-04-13 —
+    // one of the best-maintained open tree datasets in the dataset). Covers
+    // ~40K trees in parks and street planting strips; private-property trees
+    // are excluded.
+    //
+    // GOTCHA: SPECIES is a codedValueDomain where `code` = scientific binomial
+    // and `name` = common name. The GeoJSON export returns raw codes, so we
+    // get the scientific name directly from SPECIES, and decode common via
+    // the 574-entry domain map cached at sources/cache/palo_alto_species.json
+    // (regenerate from layer ?f=json if species are added).
+    //
+    // The dataset includes `Vacant site (small tree)` / `Vacant site (medium)`
+    // / `Vacant site (large)` as species values for empty planting slots —
+    // we skip those using ACTIVE=1 and SPECIES filter in the source URL.
+    //
+    // Terms: City of Palo Alto Open Data; the portal lists "public domain"
+    // per dataportals.org (verify paloalto.gov/Departments/Information-Technology/
+    // Open-Data-Portal/Terms-of-Use — returns 403 to scrapers).
+    id: 'palo_alto',
+    download: `https://services6.arcgis.com/evmyRZRrsopdeog7/ArcGIS/rest/services/TreeData/FeatureServer/0/query?where=ACTIVE%3D1+AND+SPECIES+NOT+LIKE+%27Vacant%25%27&outFields=*&outSR=4326&f=geojson`,
+    info: 'https://opengis.cityofpaloalto.org/',
+    sourceMetadataUrl: 'https://services6.arcgis.com/evmyRZRrsopdeog7/ArcGIS/rest/services/TreeData/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Palo Alto',
+    long: 'City of Palo Alto, California',
+    country: 'USA',
+    crosswalk: {
+        ref: 'TREEID',
+        scientific: 'SPECIES',
+        common: x => paloAltoCommon(x.SPECIES),
+        dbh: x => x.DIAMETERBREASTHEIGHT ? Number(x.DIAMETERBREASTHEIGHT) * INCHES : null,
+        heightCode: 'HEIGHTCODE', // codedValueDomain: 0-15ft / 15-30ft / ... — not decoded by GeoJSON, keep raw
+        canopyCode: 'CANOPYWIDTH',
+        trunkCount: 'TRUNKCOUNT',
+        // Condition ratings (strings, not domain codes)
+        trunkCondition: 'TRUNKCOND',
+        structureCondition: 'STRUCTURECONDITION',
+        crownCondition: 'CROWNCONDITION',
+        pestCondition: 'PESTCONDITION',
+        vigor: 'TREEVIGOR',
+        health: 'CONDITIONRATING',
+        // Site
+        growSpace: 'GROWSPACE',
+        hardscape: 'HARDSCAPE',
+        cables: 'CABLEPRESENCE',
+        staked: 'STAKEPRESENT',
+        utility: 'UTILITYPRESENCE',
+        trimCycle: 'TRIMCYCLE',
+        treeSite: 'TREESITE',
+        jurisdiction: 'JURISDICTION',
+        adminArea: 'ADMINAREA',
+        distanceFromProperty: 'DISTANCEFROMPROPERTY',
+        // Address
+        address: x => {
+            const num = x.ADDRESSNUMBER || '';
+            const street = x.STREET || '';
+            const combined = [num, street].filter(Boolean).join(' ').trim();
+            return combined || null;
+        },
+        onStreet: 'ONSTREET',
+        fromStreet: 'FROMSTREET',
+        toStreet: 'TOSTREET',
+        lotSide: 'LOTSIDE',
+        // Lifecycle
+        installDate: x => x.INSTALLDATE ? new Date(x.INSTALLDATE).toISOString() : null,
+        inventoryDate: x => x.INVENTORYDATE ? new Date(x.INVENTORYDATE).toISOString() : null,
+        updated: x => x.MODIFIEDDATE ? new Date(x.MODIFIEDDATE).toISOString() : null,
+        created: x => x.CREATEDDATE ? new Date(x.CREATEDDATE).toISOString() : null,
+        comments: 'COMMENTS',
+        staff: 'STAFF',
+    },
+},
+{
+    // Added 2026-04-14: City of Santa Barbara, CA tree inventory. MapServer
+    // layer 246 on gisportal.santabarbaraca.gov (no dedicated FeatureServer).
+    // 39,101 trees — but STALE: snapshot dated 2017-03-29, hasn't been
+    // refreshed in 9 years. West Coast Arborists produced the data. Worth an
+    // email to Trees@SantaBarbaraCA.gov for a 2025/2026 refresh.
+    //
+    // GOTCHA: DBH and HEIGHT are string bins ("0-6", "7-12", "13-18", ...,
+    // "37+" inches / "01-15", "15-30", ..., "60+" feet) rather than numerics.
+    // We extract the midpoint via parseRangeBin() and convert to metric.
+    // Null/unmeasured is sentinel "---".
+    //
+    // Also hosts a separate PDF-only "Historic Landmark and Specimen Trees"
+    // list (~100 trees) that could be added as a second source in a v1.x
+    // pass — not worth the scrape for v1.
+    id: 'santa_barbara',
+    download: 'https://gisportal.santabarbaraca.gov/server1/rest/services/CitySantaBarbara/MapServer/246/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://maps.santabarbaraca.gov/',
+    sourceMetadataUrl: 'https://gisportal.santabarbaraca.gov/server1/rest/services/CitySantaBarbara/MapServer/246?f=json',
+    format: 'arcgis-rest',
+    short: 'Santa Barbara',
+    long: 'City of Santa Barbara, California',
+    country: 'USA',
+    crosswalk: {
+        ref: 'INVENTORYI',
+        scientific: 'BOTANICALN', // Latin binomial, often with cultivar in quotes
+        // Common name is ALL CAPS — title-case lazily.
+        common: x => {
+            const v = x.COMMONNAME;
+            if (!v || v === '---') return null;
+            return String(v).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        },
+        // DBH bins: "0-6", "7-12", "13-18", "19-24", "25-30", "31-36", "37+" inches.
+        dbh: x => {
+            const mid = parseRangeBin(x.DBH);
+            return mid != null ? Math.round(mid * INCHES * 10) / 10 : null;
+        },
+        dbhBin: 'DBH',
+        // Height bins: "01-15", "15-30", "30-45", "45-60", "60+" feet.
+        height: x => {
+            const mid = parseRangeBin(x.HEIGHT);
+            return mid != null ? Math.round(mid / FEET * 100) / 100 : null;
+        },
+        heightBin: 'HEIGHT',
+        address: x => {
+            const num = x.ADDRESS || '';
+            const street = x.STREET || '';
+            const combined = [num, street].filter(Boolean).join(' ').trim();
+            return combined || null;
+        },
+        onAddress: 'ONADDRESS',
+        onStreet: 'ONSTREET',
+        side: 'SIDE',
+        fictitious: 'FICTITIOUS',
+        tree: 'TREE',
+        district: 'DISTRICT',
+        speciesId: 'SPECIESID',
+        recommendation: 'RECOMMENDE',
+        parkway: 'PARKWAY',
+        utility: 'UTILITY',
+        sidewalkDamage: 'SIDEWALKDA',
+        updated: x => x.DATEMODIFI ? new Date(x.DATEMODIFI).toISOString() : null,
+    },
+},
+{
+    // Added 2026-04-14: City of Irvine, CA tree inventory. City-owned ArcGIS
+    // Server at gis.cityofirvine.org, backed by Lucity asset management. We
+    // filter to TRG_STAT_CD=1 (active trees only) — the FeatureServer has
+    // 79,637 total rows but 16,242 are removed/inactive. 63,395 active.
+    //
+    // GOTCHA: Like Redmond, Irvine uses Lucity-style common names in
+    // "Genus, Variant" format ("Euc, Ghost Gum", "Orchid, Hong Kong") and
+    // TRG_SN_COM (scientific name slot) is NULL on every record. Same problem
+    // as Redmond — need a Lucity common→scientific map for v1.x. For now we
+    // store the raw Lucity name as `common` and leave `scientific` null.
+    //
+    // Also stale: max LASTMODDATE = 2023-07-03, no edits in ~3 years.
+    //
+    // License: no metadata on the service. Public-unauthenticated REST. Treat
+    // as California Public Records Act implicit public — courtesy email
+    // recommended before redistribution. Attribution: "City of Irvine GIS".
+    id: 'irvine',
+    download: 'https://gis.cityofirvine.org/arcgis/rest/services/Lucity/Lucity_Editor_Trees/FeatureServer/0/query?where=TRG_STAT_CD%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://gis.cityofirvine.org/arcgis/rest/services/Lucity/Lucity_Editor_Trees/FeatureServer',
+    sourceMetadataUrl: 'https://gis.cityofirvine.org/arcgis/rest/services/Lucity/Lucity_Editor_Trees/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Irvine',
+    long: 'City of Irvine, California',
+    country: 'USA',
+    crosswalk: {
+        ref: 'TRG_NUM',
+        // TRG_SN_COM is scientific name slot but 100% null in the dataset.
+        // TODO(v1.x): decode TRG_COMMON ("Euc, Ghost Gum") to scientific via
+        // a Lucity common-name lookup table — same problem as Redmond's
+        // 6-char species codes.
+        common: 'TRG_COMMON',
+        luscityId: 'TRG_PK_NUM',
+        dbh: x => x.DBH ? Number(x.DBH) * INCHES : null,
+        canopy: x => x.CANOPY ? Number(x.CANOPY) / FEET : null, // ft -> m
+        height: x => x.HEIGHT ? Number(x.HEIGHT) / FEET : null, // ft -> m
+        // Coded integers — domains live in Landscape_Pro/MapServer layers 8-10
+        // and aren't joined. Keep raw codes with a TODO to decode later.
+        siteType: 'TRG_STYPE_CD',
+        treeType: 'TRG_TYPE_CD',
+        designationCode: 'TRG_DESIGCD',
+        conditionCode: 'TRG_COND_CD',
+        // Condition / health ratings
+        healthRating: 'HEALTHRATING',
+        structureRating: 'STRUCTURERATING',
+        // Address / location
+        address: x => {
+            const num = x.ADDRESS || '';
+            const street = x.STREET || '';
+            const combined = [num, street].filter(Boolean).join(' ').trim();
+            return combined || null;
+        },
+        side: 'SIDE',
+        siteTypeCode: 'SITETYPE',
+        district: 'DISTRICT',
+        planningArea: 'PLANNINGAREA',
+        locationDescription: 'LOCATIONDESCRIPTION',
+        zoneArea: 'Zone_Area',
+        sequenceNumber: 'SEQUENCENUMBER',
+        cityMaintained: 'CITYMAINTAINED',
+        removed: 'REMOVED',
+        // Trim cycle
+        trimCycleType: 'TRIMCYCLETYPE',
+        lastTrimMonth: 'MONTHLASTCYCLETRIM',
+        lastTrimYear: 'YEARLASTCYCLETRIM',
+        nextTrimMonth: 'MONTHNEXTCYCLETRIM',
+        nextTrimYear: 'YEARNEXTCYCLETRIM',
+        // Lifecycle
+        datePlanted: x => x.Date_Planted ? new Date(x.Date_Planted).toISOString() : null,
+        updated: x => x.LASTMODDATE ? new Date(x.LASTMODDATE).toISOString() : null,
+        lastSync: x => x.LASTSYNDATE ? new Date(x.LASTSYNDATE).toISOString() : null,
+        lastModifiedBy: 'LASTMODBY',
+        comments: 'COMMENTS',
     },
 },
 {

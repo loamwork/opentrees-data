@@ -146,12 +146,16 @@ const DEFAULT_SOURCE_IDS = [
     'boston',
     'beaverton',
     'cambridge',
+    'irvine',
     'ithaca',
     'mountain_view',
     'oakland',
+    'palo_alto',
     'redmond',
+    'san_diego',
     'san_jose',
     'san_jose_heritage',
+    'santa_barbara',
     'santa_fe',
     'london',
     'bristol',
@@ -510,6 +514,7 @@ async function refreshOneSource(source) {
     } else if (source.format === 'arcgis-rest') {
         const features = await fetchArcgisGeoJsonAll(source.download);
         console.log(`  fetched ${features.length} ArcGIS features`);
+        let droppedNoId = 0;
         for (const f of features) {
             const props = f.properties || {};
             // GeoJSON: geometry.coordinates = [lon, lat]
@@ -519,7 +524,9 @@ async function refreshOneSource(source) {
             }
             const rec = makeCanonicalRecord(props, source, latLon, sourceLastUpdated, ingestedAt);
             if (rec) records.push(rec);
+            else droppedNoId++;
         }
+        if (droppedNoId > 0) console.log(`  dropped ${droppedNoId} records with no crosswalk ref/id`);
     } else if (source.format === 'geojson') {
         const features = await fetchGeoJsonOnce(source.download);
         console.log(`  fetched ${features.length} GeoJSON features`);
