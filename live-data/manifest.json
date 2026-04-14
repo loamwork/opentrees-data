@@ -636,7 +636,23 @@
       "droppedNoGeo": 0,
       "durationSec": 58,
       "lastRunStatus": "ok"
+    },
+    "minneapolis": {
+      "sourceId": "minneapolis",
+      "short": "Minneapolis",
+      "long": "City of Minneapolis, Minnesota",
+      "country": "USA",
+      "format": "csv",
+      "download": "https://pasta.lternet.edu/package/data/eml/knb-lter-msp/2/2/53c7aaf8775a237fba8297006e54a99f",
+      "info": "https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-msp.2.2",
+      "license": "CC-BY-4.0",
+      "sourceLastUpdated": null,
+      "ingestedAt": "2026-04-14T14:06:26.959Z",
+      "recordCount": 228957,
+      "droppedNoGeo": 0,
+      "durationSec": 23,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T13:42:53.191Z"
+  "lastRefreshedAt": "2026-04-14T14:06:49.616Z"
 }

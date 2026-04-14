@@ -1028,6 +1028,73 @@ module.exports = [
     },
 },
 {
+    // Added 2026-04-14: City of Minneapolis, MN from the MSP-LTER aggregated
+    // Twin Cities metro tree inventory (Environmental Data Initiative package
+    // knb-lter-msp.2.2, CC-BY-4.0). Stevage's upstream had Minneapolis but
+    // it was broken years ago; the city itself doesn't publish a full open
+    // inventory (MPRB runs a ~200K internal DB but only exposes an 8,964-row
+    // curated "trees near you" subset publicly). The MSP-LTER CSV is a
+    // 2012-2022 compilation aggregating inventories from 35 municipalities,
+    // one county, one park system, three non-profits, and two research
+    // efforts across the seven-county MSP metro (628,349 rows total).
+    //
+    // We filter to rows where the city field literally equals "Minneapolis"
+    // (~207K records that are physically located inside Minneapolis city
+    // limits, regardless of which entity collected them — about half are
+    // from the Minneapolis city inventory and the rest are from other
+    // aggregation sources).
+    //
+    // LIMITATIONS: the CSV has no common names, no DBH, no height, no
+    // condition, no address. Only scientific name, genus/epithet, cultivar
+    // (parsed from givn_nm), land cover, and lat/lon. Downstream consumers
+    // can map scientific -> common via a species lookup if needed.
+    //
+    // The same CSV includes St. Paul (112K), Plymouth (40K), Woodbury (30K),
+    // Coon Rapids (23K), Hennepin County (20K), St. Louis Park (20K),
+    // Brooklyn Park (14K), and ~25 more Twin Cities metro municipalities —
+    // we can add them as additional filtered sources if Pining expands.
+    id: 'minneapolis',
+    download: 'https://pasta.lternet.edu/package/data/eml/knb-lter-msp/2/2/53c7aaf8775a237fba8297006e54a99f',
+    info: 'https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-msp.2.2',
+    format: 'csv',
+    short: 'Minneapolis',
+    long: 'City of Minneapolis, Minnesota',
+    country: 'USA',
+    license: 'CC-BY-4.0',
+    filter: row => row.city === 'Minneapolis',
+    crosswalk: {
+        // CSV has no natural primary key; construct a stable ref from
+        // entity + lat + lon + scientific so the same tree hashes to the
+        // same ref across refreshes (the data itself is frozen 2023, so
+        // refreshes are a no-op, but we keep the pattern stable).
+        ref: x => `${x.entity || 'unknown'}_${x.lat}_${x.lon}_${(x.genus_sp || '').replace(/\s+/g, '-')}`,
+        scientific: 'genus_sp',
+        genus: 'genus',
+        epithet: 'epithet',
+        // The given_nm field sometimes includes a cultivar in single quotes,
+        // e.g. "Ulmus 'Morton'" (genus_sp = "Ulmus davidiana"). Extract the
+        // cultivar when present.
+        cultivar: x => {
+            const g = x.givn_nm || '';
+            const m = g.match(/'([^']+)'/);
+            return m ? m[1] : null;
+        },
+        // Source entity — one of 35 contributing orgs: the city itself
+        // (Minneapolis), MPRB park district, TreeTrust nonprofit, adopt_a_tree
+        // program, Hennepin County, Three Rivers Park District, tchep, etc.
+        sourceEntity: 'entity',
+        // Land cover class: "street", "rec_parkland", "residential",
+        // "commercial", "industrial", "vacant", "agriculture". Street and
+        // park trees dominate.
+        landCover: 'lnd_cvr',
+        landCoverCode: 'cvr_code',
+        // plot_lvl=0 means this is a full inventory record (real tree).
+        // plot_lvl=1 means it was sampled from a study plot — effectively
+        // zero for Minneapolis (all 207K are plot_lvl=0).
+        plotLevel: 'plot_lvl',
+    },
+},
+{
     // Verified 2026-04-13: stevage's URL still works but the field names in
     // their crosswalk were all wrong-cased (UPPERCASE) — the actual CSV columns
     // are lowercase: site_id / species_botanic / species_common / diameter /

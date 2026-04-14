@@ -148,6 +148,7 @@ const DEFAULT_SOURCE_IDS = [
     'cambridge',
     'irvine',
     'ithaca',
+    'minneapolis',
     'mountain_view',
     'oakland',
     'palo_alto',
@@ -503,10 +504,17 @@ async function refreshOneSource(source) {
     const ingestedAt = new Date().toISOString();
     let records = [];
 
+    // Optional per-row filter (e.g. select one city out of an aggregated
+    // regional CSV). Applied before crosswalking so coordinate extraction and
+    // canonical-record building only run on the rows we actually want.
+    const rowFilter = typeof source.filter === 'function' ? source.filter : null;
+    let droppedByFilter = 0;
+
     if (source.format === 'csv') {
         const rows = await fetchCsvRows(source.download);
         console.log(`  fetched ${rows.length} CSV rows`);
         for (const row of rows) {
+            if (rowFilter && !rowFilter(row)) { droppedByFilter++; continue; }
             const latLon = extractCsvLatLon(row);
             const rec = makeCanonicalRecord(row, source, latLon, sourceLastUpdated, ingestedAt);
             if (rec) records.push(rec);
@@ -557,6 +565,8 @@ async function refreshOneSource(source) {
     } else {
         throw new Error(`Unsupported format '${source.format}' for source ${source.id}`);
     }
+
+    if (droppedByFilter > 0) console.log(`  filtered out ${droppedByFilter} rows via source.filter`);
 
     // Drop records without valid coords. The "Null Island" check catches GPS
     // sentinels that slipped through an exact `!== 0` test — e.g. one San
