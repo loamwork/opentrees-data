@@ -148,7 +148,6 @@ const DEFAULT_SOURCE_IDS = [
     'cambridge',
     'irvine',
     'ithaca',
-    'minneapolis',
     'mountain_view',
     'oakland',
     'palo_alto',
