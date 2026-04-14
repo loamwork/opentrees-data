@@ -538,23 +538,62 @@ module.exports = [
     },
 },
 {
+    // Updated 2026-04-13: Cambridge MA migrated to dataset 82zb-7qc9 ("Street
+    // Trees"). Stevage's old q83f-7quz dataset is no longer accessible. The
+    // new dataset is much richer (54 fields vs 7 in the old crosswalk),
+    // including memorial tree flags, ownership, full taxonomic hierarchy, work
+    // order dates, and detailed site context. Includes both active and
+    // retired (Site Type='Retired') trees — Pining should filter to active.
+    // Source: City of Cambridge + MassDCR + MIT + Harvard maintained trees.
     id: 'cambridge',
     country: 'USA',
-    download: 'https://data.cambridgema.gov/api/views/q83f-7quz/rows.csv?accessType=DOWNLOAD',
-    info: 'https://data.cambridgema.gov/Public-Works/Street-Trees/ni4i-5bnn',
+    download: 'https://data.cambridgema.gov/api/views/82zb-7qc9/rows.csv?accessType=DOWNLOAD',
+    info: 'https://data.cambridgema.gov/Public-Works/Street-Trees/82zb-7qc9',
+    sourceMetadataUrl: 'https://data.cambridgema.gov/api/views/82zb-7qc9.json',
     format: 'csv',
     crosswalk: {
-        common: 'CommonName',
+        // The bulk CSV uses Socrata display names which include spaces and
+        // capitals (e.g. "Tree ID", "Plant Date"). Bracket notation required.
+        ref: x => x['Tree ID'],
         scientific: 'Scientific',
-        ref: 'TreeID',
-        dbh: 'diameter',
-        updated: 'last_edite',
-        planted: 'PlantDate',
-        health: x => String(x.TreeCondit).replace(/ \(.*/, '') // strings like "Good (EW 2013)"
+        common: 'CommonName',
+        genus: 'Genus',
+        species: 'Species', // Just the species epithet (e.g. "Platanoides")
+        cultivar: 'Cultivar',
+        order: 'Order_',
+        // Diameter is in inches per Cambridge documentation
+        dbh: x => x.Diameter ? Number(x.Diameter) * INCHES : null,
+        trunks: 'Trunks',
+        // Status & lifecycle
+        siteType: 'Site Type',  // Tree / Retired / etc.
+        retired: x => x['Removal Date'] || null,
+        planted: x => x['Plant Date'] || null,
+        // Memorial trees: Y/N flag — boolean for Pining hero filtering
+        memorial: x => x['Memorial Tree'] === 'Y',
+        // Site context
+        ownership: 'Ownership',
+        location: 'Location',
+        adaCompliant: x => x['ADA Compliant'] === 'Y',
+        treeGrate: 'Tree Grate',
+        bareRoot: x => x['Bare Root'] === 'Y',
+        structuralSoil: x => x['Structural Soil'] === 'Y',
+        abutsOpenSpace: x => x['Abuts Open Space'] === 'Y',
+        exposedRoots: x => x['Exposed Roots'] === 'Y',
+        overheadWires: x => x['Overhead Wires'],
+        // Address from street number + name
+        address: x => x['Street Number'] && x['Street Name']
+            ? `${x['Street Number']} ${x['Street Name']}`
+            : null,
+        // Operational metadata
+        creator: 'creator',
+        inspector: 'inspectr',
+        plantingCompany: 'PlantingCo',
+        wateringResponsibility: 'WateringRe',
+        notes: 'notes',
+        treeWellId: 'Tree Well ID',
     },
     short: 'Cambridge',
-
-
+    long: 'City of Cambridge, Massachusetts',
 },
 {
     id: 'berkeley',

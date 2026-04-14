@@ -396,7 +396,23 @@
       "droppedNoGeo": 0,
       "durationSec": 15,
       "lastRunStatus": "ok"
+    },
+    "cambridge": {
+      "sourceId": "cambridge",
+      "short": "Cambridge",
+      "long": "City of Cambridge, Massachusetts",
+      "country": "USA",
+      "format": "csv",
+      "download": "https://data.cambridgema.gov/api/views/82zb-7qc9/rows.csv?accessType=DOWNLOAD",
+      "info": "https://data.cambridgema.gov/Public-Works/Street-Trees/82zb-7qc9",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2026-04-08T04:09:09.000Z",
+      "ingestedAt": "2026-04-14T03:48:21.171Z",
+      "recordCount": 42711,
+      "droppedNoGeo": 0,
+      "durationSec": 7,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T03:42:51.215Z"
+  "lastRefreshedAt": "2026-04-14T03:48:28.117Z"
 }
