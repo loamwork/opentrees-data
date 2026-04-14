@@ -13,6 +13,33 @@ function feet(field) {
     return tree => numeric(Number(tree[field]) / 3.280084);
 }
 
+/**
+ * Parse Bellevue's SpeciesDesc field. Format is consistently
+ *   "Genus species - [Cultivar] (Common name)"
+ * across all 10,478 records, with some empty-cultivar variants like
+ *   "Acer rubrum -  (Red maple)"
+ * Memoized on the row object so each tree parses once even if the
+ * crosswalk references it multiple times.
+ */
+function parseBellevueSpecies(x) {
+    if (x._bellevue_species !== undefined) return x._bellevue_species;
+    const s = x.SpeciesDesc || '';
+    let result;
+    const m = s.match(/^(.+?)\s*-\s*(.*?)\s*\((.+?)\)\s*$/);
+    if (m) {
+        result = {
+            scientific: (m[1] || '').trim() || null,
+            cultivar:   (m[2] || '').trim() || null,
+            common:     (m[3] || '').trim() || null,
+        };
+    } else {
+        // Fallback: unparseable, return whole string as scientific
+        result = { scientific: s.trim() || null, cultivar: null, common: null };
+    }
+    x._bellevue_species = result;
+    return result;
+}
+
 module.exports = [
 {
     // Updated 2026-04-13: stevage's old opendata.arcgis.com zip URL is dead.
@@ -448,8 +475,14 @@ module.exports = [
     country: 'USA',
     crosswalk: {
         ref: 'CityTreeID',
-        scientific: 'SpeciesDesc',  // schema only has SpeciesDesc, no separate common
-        common: 'SpeciesDesc',
+        // Bellevue's SpeciesDesc field follows a consistent structured format:
+        //   "Genus species - [Cultivar] (Common name)"
+        // Confirmed across all 10,478 records / 197 distinct species. Some
+        // entries have an empty cultivar slot (e.g. "Acer rubrum -  (Red maple)").
+        // Memoize the parse on the row object so each tree only parses once.
+        scientific: x => parseBellevueSpecies(x).scientific,
+        cultivar:   x => parseBellevueSpecies(x).cultivar,
+        common:     x => parseBellevueSpecies(x).common,
         dbh: x => x.TreeDiameter_in ? Number(x.TreeDiameter_in) * INCHES : null,
         status: 'TreeStatus',
         yearPlanted: 'YearPlanted',

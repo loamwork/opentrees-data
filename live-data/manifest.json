@@ -503,10 +503,10 @@
       "info": "https://bellevuewa.gov/city-government/departments/transportation/about/community/urban-forestry",
       "license": "CC-BY-NC-4.0",
       "sourceLastUpdated": "2026-04-13T19:11:25.115Z",
-      "ingestedAt": "2026-04-14T04:32:37.017Z",
+      "ingestedAt": "2026-04-14T04:37:20.978Z",
       "recordCount": 10478,
       "droppedNoGeo": 0,
-      "durationSec": 3,
+      "durationSec": 1,
       "lastRunStatus": "ok"
     },
     "redmond": {
@@ -526,5 +526,5 @@
       "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T04:32:45.507Z"
+  "lastRefreshedAt": "2026-04-14T04:37:22.187Z"
 }
