@@ -148,6 +148,7 @@ const DEFAULT_SOURCE_IDS = [
     'london',
     'bristol',
     'cambridge_uk',
+    'uk_planning_tpo',
     'edinburgh',
     'york',
     'york-private',
@@ -391,7 +392,7 @@ function extractCsvLatLon(row) {
     // datasets Y/X are state plane projection coordinates (feet/meters in a
     // local CRS, not lat/lon). The WKT in `the_geom` / `Geometry` / `Location`
     // / `shape_wkt` is always WGS84.
-    const wktSources = ['the_geom', 'geom', 'GEOMETRY', 'geometry', 'Geometry', 'Location', 'location', 'shape_wkt'];
+    const wktSources = ['the_geom', 'geom', 'GEOMETRY', 'geometry', 'Geometry', 'Location', 'location', 'shape_wkt', 'point'];
     for (const key of wktSources) {
         const v = row[key];
         if (typeof v !== 'string') continue;

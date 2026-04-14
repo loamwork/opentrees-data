@@ -428,7 +428,23 @@
       "droppedNoGeo": 0,
       "durationSec": 1,
       "lastRunStatus": "ok"
+    },
+    "uk_planning_tpo": {
+      "sourceId": "uk_planning_tpo",
+      "short": "UK TPO (Planning Data)",
+      "long": "UK National Tree Preservation Orders — Planning Data",
+      "country": "UK",
+      "format": "csv",
+      "download": "https://files.planning.data.gov.uk/dataset/tree.csv",
+      "info": "https://www.planning.data.gov.uk/dataset/tree",
+      "license": "OGL-UK-3.0",
+      "sourceLastUpdated": null,
+      "ingestedAt": "2026-04-14T04:16:03.386Z",
+      "recordCount": 191081,
+      "droppedNoGeo": 16096,
+      "durationSec": 8,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T03:57:30.802Z"
+  "lastRefreshedAt": "2026-04-14T04:16:10.923Z"
 }

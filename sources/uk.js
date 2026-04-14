@@ -20,6 +20,61 @@ module.exports = [
         },
     },
     {
+        // Added 2026-04-14: UK national Tree Preservation Orders dataset, from
+        // the government's Planning Data portal at planning.data.gov.uk. This
+        // is a UNIFIED national dataset aggregating TPO records from ~60 UK
+        // local authorities into a single CSV — every record is a legally-
+        // protected tree under UK Tree Preservation Order legislation, the
+        // closest UK equivalent to US heritage tree designation.
+        //
+        // 205,023 total records, 188,927 with point geometry. License: UK
+        // Open Government Licence v3.0 (commercial use OK).
+        //
+        // CRITICAL: this source provides our ONLY coverage for several
+        // priority UK cities that don't publish their own open data:
+        //   Newcastle upon Tyne   — 7,336 trees (org 228)
+        //   Oxford City Council   — 1,350 trees (org 251)
+        //   Buckinghamshire       — 7,591 trees (org 67) — covers Beaconsfield
+        //
+        // Schema is sparse: most records only have geometry, name, reference,
+        // address text, and a TPO order number. Only ~4% have tree-species
+        // and ~3% have full addresses. The data origin is the legal TPO
+        // process — councils are required to publish TPO records under the
+        // INSPIRE Regulations 2009.
+        //
+        // Note: this overlaps with york_tpo (which uses York's own ArcGIS
+        // server). Pining should de-duplicate by coordinate proximity if
+        // shipping both — or just prefer one over the other per council.
+        id: 'uk_planning_tpo',
+        country: 'UK',
+        download: 'https://files.planning.data.gov.uk/dataset/tree.csv',
+        info: 'https://www.planning.data.gov.uk/dataset/tree',
+        format: 'csv',
+        short: 'UK TPO (Planning Data)',
+        long: 'UK National Tree Preservation Orders — Planning Data',
+        license: 'OGL-UK-3.0', // overrides default CC-BY-NC
+        crosswalk: {
+            ref: 'entity', // planning.data.gov.uk's per-tree entity ID
+            reference: 'reference', // council's local TPO reference
+            organisationEntity: 'organisation-entity',
+            scientific: 'tree-species', // only ~4% populated
+            description: 'description',
+            address: 'address-text',
+            addressUprn: 'uprn',
+            notes: 'notes',
+            felledDate: 'felled-date',
+            tpoOrder: 'tree-preservation-order',
+            startDate: 'start-date',
+            quality: 'quality',
+            // The geometry is in `point` as a WKT POINT string. Our extractor
+            // doesn't auto-detect that key name yet — we expose it for WKT
+            // parsing via the 'point' WKT candidate added to live-refresh.js.
+            // Every record is TPO-protected → tag as heritage by construction.
+            tpo: () => true,
+            heritage: () => true,
+        },
+    },
+    {
         // Added 2026-04-13: Cambridge City Council tree inventory. Council-
         // owned and managed trees on public open spaces (excludes private
         // garden trees, woodlands, and trees in their first year). Direct CSV
