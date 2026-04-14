@@ -492,7 +492,39 @@
       "droppedNoGeo": 0,
       "durationSec": 1,
       "lastRunStatus": "ok"
+    },
+    "bellevue": {
+      "sourceId": "bellevue",
+      "short": "Bellevue",
+      "long": "City of Bellevue, Washington",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services1.arcgis.com/EYzEZbDhXZjURPbP/arcgis/rest/services/City_Trees/FeatureServer/29/query?where=1%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://bellevuewa.gov/city-government/departments/transportation/about/community/urban-forestry",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2026-04-13T19:11:25.115Z",
+      "ingestedAt": "2026-04-14T04:32:37.017Z",
+      "recordCount": 10478,
+      "droppedNoGeo": 0,
+      "durationSec": 3,
+      "lastRunStatus": "ok"
+    },
+    "redmond": {
+      "sourceId": "redmond",
+      "short": "Redmond",
+      "long": "City of Redmond, Washington",
+      "country": "USA",
+      "format": "arcgis-rest",
+      "download": "https://services7.arcgis.com/9u5SMK7jcrQbBJIC/arcgis/rest/services/TreeSite/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson",
+      "info": "https://www.redmond.gov/235/Forestry",
+      "license": "CC-BY-NC-4.0",
+      "sourceLastUpdated": "2022-06-16T16:52:12.890Z",
+      "ingestedAt": "2026-04-14T04:32:40.011Z",
+      "recordCount": 7985,
+      "droppedNoGeo": 0,
+      "durationSec": 6,
+      "lastRunStatus": "ok"
     }
   },
-  "lastRefreshedAt": "2026-04-14T04:25:56.051Z"
+  "lastRefreshedAt": "2026-04-14T04:32:45.507Z"
 }

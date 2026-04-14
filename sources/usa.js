@@ -432,6 +432,78 @@ module.exports = [
     }
 }, 
 {
+    // Added 2026-04-14: Bellevue WA City Trees inventory. ~10,478 records
+    // hosted on the City of Bellevue's ArcGIS Online org (cobgis). Last
+    // edited 2026-04-13 — actively maintained. Schema is sparse (13 fields):
+    // CityTreeID, TreeStatus, YearPlanted, Management, X/Y, SpeciesDesc,
+    // TreeDiameter_in. Layer is on /FeatureServer/29 specifically (uncommon
+    // ID — note this).
+    id: 'bellevue',
+    download: 'https://services1.arcgis.com/EYzEZbDhXZjURPbP/arcgis/rest/services/City_Trees/FeatureServer/29/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://bellevuewa.gov/city-government/departments/transportation/about/community/urban-forestry',
+    sourceMetadataUrl: 'https://services1.arcgis.com/EYzEZbDhXZjURPbP/arcgis/rest/services/City_Trees/FeatureServer/29?f=json',
+    format: 'arcgis-rest',
+    short: 'Bellevue',
+    long: 'City of Bellevue, Washington',
+    country: 'USA',
+    crosswalk: {
+        ref: 'CityTreeID',
+        scientific: 'SpeciesDesc',  // schema only has SpeciesDesc, no separate common
+        common: 'SpeciesDesc',
+        dbh: x => x.TreeDiameter_in ? Number(x.TreeDiameter_in) * INCHES : null,
+        status: 'TreeStatus',
+        yearPlanted: 'YearPlanted',
+        management: 'Management',
+        creator: 'Creator',
+        editor: 'Editor',
+        created: x => x.CreationDate ? new Date(x.CreationDate).toISOString() : null,
+        updated: x => x.EditDate ? new Date(x.EditDate).toISOString() : null,
+    },
+},
+{
+    // Added 2026-04-14: Redmond WA street tree inventory ("TreeSite") hosted
+    // on CORGIS (City of Redmond GIS) ArcGIS Online org. ~7,985 records
+    // including both planted trees and vacant tree sites — Pining should
+    // filter on d_TreeExists or d_TreeSpecies presence to get only actual
+    // trees. Schema is from Lucity asset management software, hence the
+    // "d_*" prefixed fields. Last edited 2022-06-16.
+    id: 'redmond',
+    download: 'https://services7.arcgis.com/9u5SMK7jcrQbBJIC/arcgis/rest/services/TreeSite/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson',
+    info: 'https://www.redmond.gov/235/Forestry',
+    sourceMetadataUrl: 'https://services7.arcgis.com/9u5SMK7jcrQbBJIC/arcgis/rest/services/TreeSite/FeatureServer/0?f=json',
+    format: 'arcgis-rest',
+    short: 'Redmond',
+    long: 'City of Redmond, Washington',
+    country: 'USA',
+    crosswalk: {
+        ref: 'AssetID',
+        scientific: 'd_TreeSpecies', // single field with species
+        common: 'NAME', // human-readable name (where present)
+        treeSiteId: 'TreeSiteID',
+        assetType: 'd_AssetType',
+        dataSource: 'd_DataSource',
+        ownership: 'd_Ownership',
+        status: 'd_Status',
+        treeExists: 'd_TreeExists', // Y/N — vacant sites have N
+        installYear: 'InstallYear',
+        removedYear: 'RemovedYear',
+        pitSize: 'd_PitSize',
+        grateType: 'd_GrateType',
+        landscapeType: 'd_LandscapeType',
+        irrigation: 'd_Irrigation',
+        waterBag: 'd_WaterBag',
+        waterBagInstallYear: 'WaterBagInstallYear',
+        attentionRequired: 'd_AttentionRequired',
+        siteInspectionDate: x => x.SiteInspectionDate ? new Date(x.SiteInspectionDate).toISOString() : null,
+        inspectedBy: 'd_InspectedBy',
+        notes: 'Notes',
+        created: x => x.DateCreated ? new Date(x.DateCreated).toISOString() : null,
+        updated: x => x.DateModified ? new Date(x.DateModified).toISOString() : null,
+        createdBy: 'CreatedBy',
+        modifiedBy: 'ModifiedBy',
+    },
+},
+{
     // Verified 2026-04-13: stevage's URL still works but the field names in
     // their crosswalk were all wrong-cased (UPPERCASE) — the actual CSV columns
     // are lowercase: site_id / species_botanic / species_common / diameter /
