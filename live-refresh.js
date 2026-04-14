@@ -212,7 +212,7 @@ async function httpGet(url, { headers = {}, timeoutMs = 60_000 } = {}) {
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
         const res = await fetch(url, {
-            headers: { 'User-Agent': 'opentrees-data live-refresh (loamwork fork)', ...headers },
+            headers: { 'User-Agent': 'arborlog live-refresh (github.com/loamwork/arborlog)', ...headers },
             signal: ctrl.signal,
         });
         if (!res.ok) {
